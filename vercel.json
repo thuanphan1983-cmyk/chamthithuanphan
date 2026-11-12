@@ -3,55 +3,55 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/exams",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/$1"
     },
     {
       "source": "/exams/(.*)",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/exams/$1"
+    },
+    {
+      "source": "/exams",
+      "destination": "/api/index?__path__=/api/exams"
     },
     {
       "source": "/scan",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/scan"
     },
     {
       "source": "/grade-sample",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/results",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/grade-sample"
     },
     {
       "source": "/results/(.*)",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/results/$1"
+    },
+    {
+      "source": "/results",
+      "destination": "/api/index?__path__=/api/results"
     },
     {
       "source": "/download-sheet",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/download-sheet"
     },
     {
       "source": "/export-excel",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/export-excel"
     },
     {
       "source": "/sample-sheet",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/sample-sheet"
     },
     {
       "source": "/keys",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/keys"
     },
     {
       "source": "/set-keys",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/api/set-keys"
     },
     {
       "source": "/uploads/(.*)",
-      "destination": "/api/index"
+      "destination": "/api/index?__path__=/uploads/$1"
     }
   ]
 }

@@ -56,25 +56,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/api/index")
-@app.get("/index")
-def api_index_handler(request: Request):
-    return {
-        "status": "ok",
-        "url_path": request.url.path,
-        "headers": dict(request.headers)
-    }
-
-@app.get("/api/debug-headers")
-@app.get("/debug-headers")
-def debug_headers_endpoint(request: Request):
-    return {
-        "url_path": request.url.path,
-        "scope_path": request.scope.get("path"),
-        "scope_raw_path": str(request.scope.get("raw_path")),
-        "headers": dict(request.headers)
-    }
-
 # Cấu hình đường dẫn linh hoạt hỗ trợ cả Local và Vercel Serverless
 IS_VERCEL = os.getenv("VERCEL") == "1" or "VERCEL" in os.environ or "AWS_LAMBDA_FUNCTION_NAME" in os.environ
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
