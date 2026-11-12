@@ -3,40 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>TNMaker AI - Chấm Thi Trắc Nghiệm & Tự Luận</title>
+  <title>TNMaker AI Pro - Hệ Thống Chấm Thi Di Động Thông Minh</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Phosphor Icons -->
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   
   <style>
-    /* Hiệu ứng khung ngắm quét TNMaker */
+    /* Khung ngắm quét TNMaker 4 góc */
     .scan-reticle {
       position: relative;
       border: 2px dashed rgba(34, 197, 94, 0.4);
-      box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+      box-shadow: 0 0 25px rgba(34, 197, 94, 0.15);
+      transition: all 0.25s ease;
+    }
+    .scan-reticle.locked {
+      border-color: #22c55e;
+      box-shadow: 0 0 35px rgba(34, 197, 94, 0.6), inset 0 0 20px rgba(34, 197, 94, 0.3);
     }
     
     .corner-bracket {
       position: absolute;
-      width: 28px;
-      height: 28px;
-      border-color: #22c55e;
+      width: 32px;
+      height: 32px;
+      border-color: #facc15;
       border-width: 4px;
+      transition: all 0.2s ease;
+    }
+    .scan-reticle.locked .corner-bracket {
+      border-color: #22c55e;
+      width: 38px;
+      height: 38px;
     }
     .corner-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
     .corner-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
     .corner-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
     .corner-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
 
-    /* Hiệu ứng tia quét laser */
+    /* Tia quét laser chuyển động */
     .laser-line {
       position: absolute;
       width: 100%;
       height: 3px;
-      background: linear-gradient(90deg, rgba(34,197,94,0) 0%, rgba(34,197,94,0.9) 50%, rgba(34,197,94,0) 100%);
-      box-shadow: 0 0 12px #22c55e;
-      animation: scanLaser 2.2s infinite ease-in-out;
+      background: linear-gradient(90deg, rgba(34,197,94,0) 0%, rgba(34,197,94,0.95) 50%, rgba(34,197,94,0) 100%);
+      box-shadow: 0 0 14px #22c55e;
+      animation: scanLaser 2.0s infinite ease-in-out;
     }
 
     @keyframes scanLaser {
@@ -45,37 +56,41 @@
       100% { top: 2%; opacity: 0.2; }
     }
 
-    /* Ẩn thanh cuộn nhưng vẫn cuộn được */
+    /* Ẩn thanh cuộn */
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none antialiased">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans select-none antialiased">
 
-  <!-- ==================== HEADER THANH ĐIỀU HƯỚNG ==================== -->
-  <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700/60 sticky top-0 z-40 px-4 py-2.5 flex items-center justify-between">
+  <!-- ==================== HEADER ĐIỀU HƯỚNG ==================== -->
+  <header class="bg-slate-900/95 backdrop-blur border-b border-slate-800 sticky top-0 z-40 px-3.5 py-2.5 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
         <i class="ph-bold ph-scan text-xl text-slate-950"></i>
       </div>
       <div>
-        <h1 class="text-base font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400 bg-clip-text text-transparent leading-none">
-          TNMaker AI
+        <h1 class="text-sm font-black tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400 bg-clip-text text-transparent leading-none">
+          TNMaker AI Pro
         </h1>
-        <p class="text-[10px] text-emerald-400/90 font-mono font-medium">Wi-Fi: 10.119.235.16:8000</p>
+        <p class="text-[10px] text-emerald-400/90 font-medium flex items-center gap-1 mt-0.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          Tự động bắt 4 góc
+        </p>
       </div>
     </div>
 
     <!-- Nút điều khiển âm thanh & Camera -->
-    <div class="flex items-center gap-2">
-      <button id="btnSoundToggle" onclick="toggleSound()" class="p-2 rounded-lg bg-slate-700/80 hover:bg-slate-700 text-emerald-400 transition" title="Bật/Tắt âm thanh Beep">
+    <div class="flex items-center gap-1.5">
+      <button id="btnSoundToggle" onclick="toggleSound()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-emerald-400 transition" title="Bật/Tắt âm thanh Beep">
         <i id="soundIcon" class="ph-fill ph-speaker-high text-lg"></i>
       </button>
-      <button id="btnSwitchCamera" onclick="switchCamera()" class="p-2 rounded-lg bg-slate-700/80 hover:bg-slate-700 text-slate-300 transition" title="Đổi Camera">
+      <button id="btnSwitchCamera" onclick="switchCamera()" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 transition" title="Đổi Camera trước/sau">
         <i class="ph-bold ph-camera-rotate text-lg"></i>
       </button>
-      <button onclick="switchTab('keys')" class="p-2 rounded-lg bg-slate-700/80 hover:bg-slate-700 text-slate-300 transition" title="Quản lý đáp án">
-        <i class="ph-bold ph-key text-lg"></i>
+      <button onclick="openCreateExamModal()" class="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-lg shadow-emerald-600/25 transition">
+        <i class="ph-bold ph-plus-circle text-base"></i>
+        <span class="hidden sm:inline">Tạo bài chấm</span>
       </button>
     </div>
   </header>
@@ -83,36 +98,54 @@
   <!-- ==================== NỘI DUNG CHÍNH (TABS) ==================== -->
   <main class="flex-1 flex flex-col relative overflow-hidden">
     
-    <!-- TAB 1: MÀN HÌNH QUÉT CAMERA -->
+    <!-- TAB 1: MÀN HÌNH QUÉT CAMERA BẮT 4 GÓC -->
     <section id="tab-scan" class="flex-1 flex flex-col relative bg-black">
+      
+      <!-- Thanh chọn bài kiểm tra đang chấm (Active Exam Banner) -->
+      <div class="bg-slate-900/90 backdrop-blur border-b border-slate-800/80 px-4 py-2 flex items-center justify-between z-20">
+        <div class="flex items-center gap-2 overflow-hidden">
+          <span class="text-[11px] text-slate-400 shrink-0">Đang chấm:</span>
+          <select id="activeExamSelect" onchange="changeActiveExam()" class="bg-slate-800 text-emerald-300 text-xs font-bold py-1 px-2.5 rounded-lg border border-slate-700 focus:outline-none focus:border-emerald-500 truncate max-w-[200px] sm:max-w-xs">
+            <!-- Render động danh sách bài kiểm tra -->
+          </select>
+        </div>
+        <span id="activeExamBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
+          Mẫu 4 phần
+        </span>
+      </div>
+
       <!-- Vùng hiển thị Camera Video & Khung ngắm -->
       <div class="relative flex-1 flex items-center justify-center overflow-hidden bg-black">
         <video id="videoFeed" autoplay playsinline muted class="w-full h-full object-cover"></video>
         <canvas id="captureCanvas" class="hidden"></canvas>
+        <canvas id="trackerCanvas" class="hidden"></canvas>
 
         <!-- Khung ngắm A4 (Reticle) -->
         <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
-          <div class="w-[85%] max-w-sm aspect-[1/1.414] scan-reticle rounded-xl flex flex-col justify-between p-3">
+          <div id="reticleFrame" class="w-[85%] max-w-sm aspect-[1/1.414] scan-reticle rounded-xl flex flex-col justify-between p-3.5">
             <div class="corner-bracket corner-tl"></div>
             <div class="corner-bracket corner-tr"></div>
             <div class="corner-bracket corner-bl"></div>
             <div class="corner-bracket corner-br"></div>
             <div class="laser-line"></div>
 
-            <!-- 4 Marker góc minh họa để người dùng căn chỉnh -->
+            <!-- 4 Marker góc mục tiêu để căn chỉnh -->
             <div class="flex justify-between">
-              <span class="w-4 h-4 bg-emerald-400/50 rounded-sm animate-pulse"></span>
-              <span class="w-4 h-4 bg-emerald-400/50 rounded-sm animate-pulse"></span>
+              <span id="markerTL" class="w-4 h-4 bg-amber-400/60 rounded-sm transition-all duration-200"></span>
+              <span id="markerTR" class="w-4 h-4 bg-amber-400/60 rounded-sm transition-all duration-200"></span>
             </div>
-            <div class="text-center">
-              <span id="scanStatusBadge" class="bg-black/60 backdrop-blur border border-emerald-500/40 text-emerald-300 text-xs px-3 py-1 rounded-full font-medium inline-flex items-center gap-1.5 shadow">
-                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                Căn 4 marker đen vào 4 góc
-              </span>
+            
+            <div class="text-center space-y-1">
+              <div id="scanStatusBadge" class="bg-black/70 backdrop-blur border border-amber-500/40 text-amber-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg">
+                <span id="statusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+                <span id="statusText">Căn 4 marker đen vào 4 góc</span>
+              </div>
+              <p class="text-[10px] text-slate-300/80 drop-shadow">Chỉ cần đưa 4 góc vào khung là tự động chấm</p>
             </div>
+
             <div class="flex justify-between">
-              <span class="w-4 h-4 bg-emerald-400/50 rounded-sm animate-pulse"></span>
-              <span class="w-4 h-4 bg-emerald-400/50 rounded-sm animate-pulse"></span>
+              <span id="markerBL" class="w-4 h-4 bg-amber-400/60 rounded-sm transition-all duration-200"></span>
+              <span id="markerBR" class="w-4 h-4 bg-amber-400/60 rounded-sm transition-all duration-200"></span>
             </div>
           </div>
         </div>
@@ -120,7 +153,7 @@
         <!-- Trạng thái xử lý đang quét (Spinner Overlay) -->
         <div id="loadingOverlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 hidden z-30">
           <div class="w-14 h-14 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
-          <p class="text-emerald-400 font-semibold text-sm">Đang phân tích OMR & Gemini AI...</p>
+          <p class="text-emerald-400 font-bold text-sm">Đang phân tích OMR & Gemini AI...</p>
           <p class="text-slate-400 text-xs">Vui lòng giữ yên điện thoại</p>
         </div>
       </div>
@@ -133,11 +166,11 @@
           <div class="w-11 h-11 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
             <i class="ph-bold ph-image text-xl"></i>
           </div>
-          <span class="text-[11px] font-medium">Chọn ảnh</span>
+          <span class="text-[10px] font-medium">Chọn ảnh</span>
         </label>
 
-        <!-- Nút bấm Chấm Ngay (Shutter Button lớn kiểu TNMaker) -->
-        <button id="btnShutter" onclick="captureAndScan()" class="group relative flex items-center justify-center active:scale-95 transition">
+        <!-- Nút bấm Chấm Ngay (Shutter Button lớn) -->
+        <button id="btnShutter" onclick="captureAndScan()" class="group relative flex items-center justify-center active:scale-95 transition" title="Bấm chụp thủ công nếu không dùng tự động">
           <div class="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/30 transition">
             <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/40 border-4 border-slate-900">
               <i class="ph-bold ph-camera text-slate-950 text-2xl"></i>
@@ -145,22 +178,94 @@
           </div>
         </button>
 
-        <!-- Nút Test nhanh với Phiếu Mẫu -->
-        <button onclick="testWithSampleSheet()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-400 transition" title="Chấm thử nghiệm bài mẫu SBD 010008 - Mã đề 101">
+        <!-- Nút Test nhanh với Bài Mẫu -->
+        <button onclick="testWithSampleSheet()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-400 transition" title="Chấm thử nghiệm bài mẫu 010008 - Đề 101">
           <div class="w-11 h-11 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-teal-400 hover:scale-105 transition">
             <i class="ph-bold ph-flask text-xl"></i>
           </div>
-          <span class="text-[11px] font-medium text-emerald-400">Chấm bài mẫu</span>
+          <span class="text-[10px] font-medium text-emerald-400">Chấm bài mẫu</span>
         </button>
       </div>
     </section>
 
-    <!-- TAB 2: DANH SÁCH BẢNG ĐIỂM & XUẤT EXCEL -->
+    <!-- TAB 2: QUẢN LÝ BÀI CHẤM & XUẤT MẪU PHIẾU THI -->
+    <section id="tab-exams" class="flex-1 overflow-y-auto p-4 hidden space-y-4">
+      <div class="max-w-2xl mx-auto space-y-4">
+        
+        <!-- Header Danh sách Bài Chấm & Nút Tạo mới -->
+        <div class="flex items-center justify-between bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-folder-notch-open text-emerald-400"></i>
+              Quản Lý Bài Chấm
+            </h2>
+            <p class="text-xs text-slate-400">Tùy biến mẫu phiếu và ma trận thang điểm từng phần</p>
+          </div>
+          <button onclick="openCreateExamModal()" class="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition">
+            <i class="ph-bold ph-plus"></i>
+            Tạo bài mới
+          </button>
+        </div>
+
+        <!-- Box Tải Mẫu Phiếu Thi A4 In Ấn (2 Loại) -->
+        <div class="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow space-y-3">
+          <div class="flex items-center gap-2">
+            <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <i class="ph-bold ph-printer text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">Xuất Phiếu Thi A4 Chuẩn In Ấn</h3>
+              <p class="text-xs text-slate-400">Khổ chuẩn 2100 x 2970 px, 4 góc marker đen 10x10mm tự bắt góc</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <!-- Loại 1: 3 phần -->
+            <div class="bg-slate-850 p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between space-y-2">
+              <div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  MẪU 1: 3 PHẦN
+                </span>
+                <h4 class="text-xs font-bold text-white mt-1">Phiếu 100% Trắc Nghiệm</h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">Phần I: TN nhiều lựa chọn + Phần II: Đúng/Sai + Phần III: Trả lời ngắn</p>
+              </div>
+              <a href="/api/download-sheet?type=3_part" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-sky-300 text-xs font-bold py-2 px-3 rounded-lg border border-slate-700 transition">
+                <i class="ph-bold ph-download-simple"></i>
+                Tải Phiếu 3 Phần (A4)
+              </a>
+            </div>
+
+            <!-- Loại 2: 4 phần -->
+            <div class="bg-slate-850 p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between space-y-2">
+              <div>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  MẪU 2: 4 PHẦN
+                </span>
+                <h4 class="text-xs font-bold text-white mt-1">Phiếu Có Khung Tự Luận</h4>
+                <p class="text-[11px] text-slate-400 mt-0.5">Phần I: TN + Phần II: Đúng/Sai + Phần III: TLN + Phần IV: Tự luận (45% dưới)</p>
+              </div>
+              <a href="/api/download-sheet?type=4_part" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-bold py-2 px-3 rounded-lg border border-slate-700 transition">
+                <i class="ph-bold ph-download-simple"></i>
+                Tải Phiếu 4 Phần (A4)
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Danh sách các bài kiểm tra đã tạo -->
+        <div id="examsListContainer" class="space-y-3">
+          <!-- Render động danh sách bài kiểm tra -->
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 3: BẢNG TỔNG HỢP ĐIỂM & XUẤT EXCEL -->
     <section id="tab-results" class="flex-1 overflow-y-auto p-4 hidden">
       <div class="max-w-2xl mx-auto space-y-4">
         
         <!-- Header Bảng Điểm & Nút Xuất Excel -->
-        <div class="flex items-center justify-between bg-slate-800/80 backdrop-blur p-4 rounded-2xl border border-slate-700/60 shadow">
+        <div class="flex items-center justify-between bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow">
           <div>
             <h2 class="text-base font-bold text-white flex items-center gap-1.5">
               <i class="ph-bold ph-chart-bar text-emerald-400"></i>
@@ -168,7 +273,7 @@
             </h2>
             <p id="totalScannedCount" class="text-xs text-slate-400">Đã chấm: 0 bài thi</p>
           </div>
-          <a href="/export-excel" target="_blank" class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition">
+          <a id="btnExportExcel" href="/api/export-excel" target="_blank" class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition">
             <i class="ph-bold ph-file-xls text-lg"></i>
             Xuất Excel (.xlsx)
           </a>
@@ -176,88 +281,7 @@
 
         <!-- Danh sách bài thi đã chấm -->
         <div id="resultsList" class="space-y-3">
-          <!-- Render động từ JavaScript -->
-          <div class="text-center py-12 text-slate-500">
-            <i class="ph-light ph-tray text-4xl mb-2"></i>
-            <p class="text-sm">Chưa có bài thi nào được chấm.</p>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- TAB 3: QUẢN LÝ ĐÁP ÁN & MẪU PHIẾU IN -->
-    <section id="tab-keys" class="flex-1 overflow-y-auto p-4 hidden">
-      <div class="max-w-2xl mx-auto space-y-4">
-        
-        <!-- Box Hướng dẫn mở trên Điện Thoại Di Động -->
-        <div class="bg-gradient-to-r from-emerald-950/60 via-slate-800 to-slate-800 p-4 rounded-2xl border border-emerald-500/40 shadow space-y-2">
-          <div class="flex items-center gap-2">
-            <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
-              <i class="ph-bold ph-device-mobile-camera text-xl"></i>
-            </div>
-            <div>
-              <h3 class="text-sm font-bold text-white">Kết Nối Với Điện Thoại Di Động</h3>
-              <p class="text-xs text-slate-300">Mở Camera điện thoại để quét trực tiếp qua Wi-Fi</p>
-            </div>
-          </div>
-          <div class="bg-black/40 p-2.5 rounded-xl border border-emerald-500/30 flex items-center justify-between">
-            <span class="text-xs text-slate-400">Địa chỉ trình duyệt:</span>
-            <code class="text-xs font-mono font-bold text-emerald-300 select-all">http://10.119.235.16:8000</code>
-          </div>
-          <p class="text-[11px] text-slate-400 italic">Đảm bảo điện thoại và máy tính đang cùng kết nối chung một mạng Wi-Fi.</p>
-        </div>
-
-        <!-- Box Tải Phiếu In Chuẩn Bộ GD&ĐT -->
-        <div class="bg-gradient-to-br from-slate-800 to-slate-850 p-4 rounded-2xl border border-slate-700 shadow space-y-3">
-          <div class="flex items-center gap-2">
-            <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
-              <i class="ph-bold ph-printer text-xl"></i>
-            </div>
-            <div>
-              <h3 class="text-sm font-bold text-white">Mẫu Phiếu Thi A4 Chuẩn</h3>
-              <p class="text-xs text-slate-400">Khổ A4 đứng 2100 x 2970 px, 4 góc marker đen 10x10mm</p>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2 pt-1">
-            <a href="/download-sheet" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-650 text-white text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-600 transition">
-              <i class="ph-bold ph-download-simple"></i>
-              Tải Phiếu Trắng (In)
-            </a>
-            <a href="/sample-sheet" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-650 text-emerald-400 text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-600 transition">
-              <i class="ph-bold ph-file-image"></i>
-              Tải Phiếu Tô Mẫu
-            </a>
-          </div>
-        </div>
-
-        <!-- Cài đặt Gemini API Key -->
-        <div class="bg-slate-800/80 backdrop-blur p-4 rounded-2xl border border-slate-700/60 shadow space-y-2">
-          <h3 class="text-sm font-bold text-white flex items-center gap-2">
-            <i class="ph-bold ph-sparkle text-amber-400"></i>
-            Cấu hình Gemini API (Chấm Tự Luận)
-          </h3>
-          <p class="text-xs text-slate-400">Hệ thống tự động dùng Gemini 2.0 / 1.5 Flash để chấm Bài 1 & Bài 2 theo barem.</p>
-          <div class="flex gap-2 pt-1">
-            <input type="password" id="geminiApiKeyInput" placeholder="Nhập GEMINI_API_KEY (hoặc để trống dùng AI dự phòng)" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
-            <button onclick="saveApiKey()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition">Lưu</button>
-          </div>
-        </div>
-
-        <!-- Danh sách Mã Đề Thi Trong Hệ Thống -->
-        <div class="bg-slate-800/80 backdrop-blur p-4 rounded-2xl border border-slate-700/60 shadow space-y-3">
-          <div class="flex items-center justify-between">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
-              <i class="ph-bold ph-list-numbers text-sky-400"></i>
-              Danh Sách Đáp Án Mã Đề
-            </h3>
-            <span class="text-xs text-slate-400" id="keysCount">2 mã đề</span>
-          </div>
-          
-          <div id="keysContainer" class="space-y-3">
-            <!-- Render danh sách mã đề -->
-          </div>
+          <!-- Render động danh sách bài thi -->
         </div>
 
       </div>
@@ -266,24 +290,149 @@
   </main>
 
   <!-- ==================== THANH ĐIỀU HƯỚNG DƯỚI (BOTTOM NAV) ==================== -->
-  <nav class="bg-slate-850 border-t border-slate-800 px-6 py-2 flex items-center justify-around z-30">
+  <nav class="bg-slate-900 border-t border-slate-800 px-6 py-2 flex items-center justify-around z-30">
     <button onclick="switchTab('scan')" id="nav-scan" class="flex flex-col items-center gap-1 text-emerald-400 transition">
       <i class="ph-bold ph-scan text-xl"></i>
-      <span class="text-[10px] font-semibold">Chấm bài</span>
+      <span class="text-[10px] font-bold">Chấm bài</span>
+    </button>
+    <button onclick="switchTab('exams')" id="nav-exams" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition">
+      <i class="ph-bold ph-folder-notch-open text-xl"></i>
+      <span class="text-[10px] font-bold">Bài chấm</span>
     </button>
     <button onclick="switchTab('results')" id="nav-results" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition">
       <i class="ph-bold ph-chart-bar text-xl"></i>
-      <span class="text-[10px] font-semibold">Bảng điểm</span>
-    </button>
-    <button onclick="switchTab('keys')" id="nav-keys" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition">
-      <i class="ph-bold ph-gear text-xl"></i>
-      <span class="text-[10px] font-semibold">Cài đặt</span>
+      <span class="text-[10px] font-bold">Bảng điểm</span>
     </button>
   </nav>
 
-  <!-- ==================== MODAL KẾT QUẢ CHẤM TỨC THÌ (POPUP) ==================== -->
+  <!-- ==================== MODAL TẠO BÀI CHẤM MỚI (EXAM BUILDER) ==================== -->
+  <div id="createExamModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-4 hidden">
+    <div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      
+      <!-- Header Modal -->
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 flex items-center justify-between text-white">
+        <div class="flex items-center gap-2">
+          <i class="ph-bold ph-plus-circle text-2xl"></i>
+          <div>
+            <h3 class="text-sm font-bold">Tạo Bài Chấm Mới</h3>
+            <p class="text-[11px] opacity-90">Chọn mẫu phiếu và tùy chỉnh số câu & thang điểm</p>
+          </div>
+        </div>
+        <button onclick="closeCreateExamModal()" class="w-8 h-8 rounded-full bg-black/20 hover:bg-black/30 flex items-center justify-center transition">
+          <i class="ph-bold ph-x text-base"></i>
+        </button>
+      </div>
+
+      <!-- Form thiết lập -->
+      <div class="p-4 space-y-4 overflow-y-auto no-scrollbar text-xs">
+        
+        <!-- Tên bài kiểm tra -->
+        <div>
+          <label class="font-bold text-slate-300 block mb-1">Tên bài kiểm tra / Kỳ thi:</label>
+          <input type="text" id="inpExamTitle" placeholder="Ví dụ: Kiểm tra 1 tiết Toán 12 - Học kỳ 1" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 font-medium">
+        </div>
+
+        <!-- Chọn loại mẫu phiếu -->
+        <div>
+          <label class="font-bold text-slate-300 block mb-1.5">Chọn mẫu phiếu thi:</label>
+          <div class="grid grid-cols-2 gap-2.5">
+            <!-- Mẫu 3 phần -->
+            <label class="cursor-pointer border-2 border-slate-700 hover:border-emerald-500 rounded-2xl p-3 flex flex-col justify-between transition relative bg-slate-850" id="cardSheet3">
+              <input type="radio" name="sheetTypeRadio" value="3_part" onchange="toggleSheetTypeForm('3_part')" class="absolute top-2.5 right-2.5 text-emerald-500">
+              <div>
+                <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-400">100% TRẮC NGHIỆM</span>
+                <h4 class="font-bold text-white text-xs mt-1.5">Mẫu 3 Phần</h4>
+                <p class="text-[10px] text-slate-400 mt-0.5">TN + Đúng/Sai + TLN (Không tự luận)</p>
+              </div>
+            </label>
+
+            <!-- Mẫu 4 phần -->
+            <label class="cursor-pointer border-2 border-emerald-500 rounded-2xl p-3 flex flex-col justify-between transition relative bg-slate-850" id="cardSheet4">
+              <input type="radio" name="sheetTypeRadio" value="4_part" checked onchange="toggleSheetTypeForm('4_part')" class="absolute top-2.5 right-2.5 text-emerald-500">
+              <div>
+                <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400">CÓ TỰ LUẬN</span>
+                <h4 class="font-bold text-white text-xs mt-1.5">Mẫu 4 Phần</h4>
+                <p class="text-[10px] text-slate-400 mt-0.5">TN + Đ/S + TLN + Tự luận (45% dưới)</p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Cấu hình số câu & điểm từng phần -->
+        <div class="bg-slate-850 p-3.5 rounded-2xl border border-slate-800 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="font-bold text-white flex items-center gap-1.5">
+              <i class="ph-bold ph-sliders text-emerald-400"></i>
+              Cấu hình số câu và thang điểm
+            </span>
+            <span id="calculatedTotalPoints" class="font-black text-rose-400 text-sm">Tổng: 10.0đ</span>
+          </div>
+
+          <!-- Phần I: Trắc nghiệm -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="text-slate-400 block mb-1">Số câu Phần I (TN):</span>
+              <input type="number" id="inpP1Num" value="12" min="1" max="40" oninput="recalcExamPoints()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-bold text-center">
+            </div>
+            <div>
+              <span class="text-slate-400 block mb-1">Điểm / câu Phần I:</span>
+              <input type="number" id="inpP1Points" value="0.25" step="0.05" min="0.05" oninput="recalcExamPoints()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-bold text-center">
+            </div>
+          </div>
+
+          <!-- Phần II: Đúng / Sai -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="text-slate-400 block mb-1">Số câu Phần II (Đ/S):</span>
+              <input type="number" id="inpP2Num" value="2" min="1" max="8" oninput="recalcExamPoints()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-bold text-center">
+            </div>
+            <div>
+              <span class="text-slate-400 block mb-1">Cách tính điểm Đ/S:</span>
+              <select id="inpP2Mode" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-semibold text-[11px]">
+                <option value="progressive">Chuẩn BGD (0.1, 0.25, 0.5, 1.0đ)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Phần III: Trả lời ngắn -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="text-slate-400 block mb-1">Số câu Phần III (TLN):</span>
+              <input type="number" id="inpP3Num" value="4" min="1" max="10" oninput="recalcExamPoints()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-bold text-center">
+            </div>
+            <div>
+              <span class="text-slate-400 block mb-1">Điểm / câu Phần III:</span>
+              <input type="number" id="inpP3Points" value="0.5" step="0.1" min="0.1" oninput="recalcExamPoints()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-bold text-center">
+            </div>
+          </div>
+
+          <!-- Phần IV: Tự luận (chỉ hiển thị khi chọn mẫu 4 phần) -->
+          <div id="rowPart4Settings" class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800">
+            <div>
+              <span class="text-slate-400 block mb-1">Số bài Phần IV (Tự luận):</span>
+              <input type="number" id="inpP4Num" value="2" min="1" max="4" oninput="recalcExamPoints()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-bold text-center">
+            </div>
+            <div>
+              <span class="text-slate-400 block mb-1">Điểm / bài Tự luận:</span>
+              <input type="number" id="inpP4Points" value="1.5" step="0.25" min="0.25" oninput="recalcExamPoints()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-bold text-center">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer Modal -->
+      <div class="p-3 bg-slate-900 border-t border-slate-800 flex gap-2">
+        <button onclick="closeCreateExamModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl transition">Hủy</button>
+        <button onclick="submitCreateExam()" class="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition">Lưu Bài Kiểm Tra</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== MODAL KẾT QUẢ CHẤM TỨC THÌ ==================== -->
   <div id="resultModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
-    <div class="w-full sm:max-w-md bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] animate-in slide-in-from-bottom duration-200">
+    <div class="w-full sm:max-w-md bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
       
       <!-- Header Modal -->
       <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 flex items-center justify-between text-white">
@@ -302,18 +451,18 @@
       </div>
 
       <!-- Nội dung kết quả -->
-      <div class="p-4 space-y-4 overflow-y-auto no-scrollbar">
+      <div class="p-4 space-y-3.5 overflow-y-auto no-scrollbar">
         
-        <!-- Khối Thông Tin Thí Sinh & Tổng Điểm Nổi Bật -->
+        <!-- Khối SBD & Tổng Điểm Nổi Bật -->
         <div class="flex items-center justify-between bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700">
           <div>
             <div class="flex items-center gap-2">
               <span class="text-xs text-slate-400">SBD:</span>
-              <span id="modalSbd" class="text-base font-bold text-white tracking-wider">010001</span>
+              <span id="modalSbd" class="text-base font-bold text-white tracking-wider">010008</span>
             </div>
             <div class="flex items-center gap-2 mt-0.5">
               <span class="text-xs text-slate-400">Mã Đề:</span>
-              <span id="modalExamCode" class="text-xs font-semibold text-emerald-400">0101</span>
+              <span id="modalExamCode" class="text-xs font-semibold text-emerald-400">101</span>
             </div>
           </div>
           <div class="text-right">
@@ -325,40 +474,40 @@
           </div>
         </div>
 
-        <!-- Bảng điểm chi tiết 4 phần -->
+        <!-- Bảng điểm chi tiết các phần -->
         <div class="grid grid-cols-2 gap-2">
-          <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+          <div class="bg-slate-850 p-2.5 rounded-xl border border-slate-800">
             <div class="text-[11px] text-slate-400 font-medium">Phần I (Trắc nghiệm)</div>
             <div class="flex items-baseline justify-between mt-1">
               <span id="modalScoreP1" class="text-lg font-bold text-emerald-400">3.00</span>
-              <span class="text-[10px] text-slate-500">/ 3.0đ</span>
+              <span class="text-[10px] text-slate-500" id="modalMaxP1">/ 3.0đ</span>
             </div>
           </div>
-          <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+          <div class="bg-slate-850 p-2.5 rounded-xl border border-slate-800">
             <div class="text-[11px] text-slate-400 font-medium">Phần II (Đúng/Sai)</div>
             <div class="flex items-baseline justify-between mt-1">
               <span id="modalScoreP2" class="text-lg font-bold text-sky-400">2.00</span>
-              <span class="text-[10px] text-slate-500">/ 2.0đ</span>
+              <span class="text-[10px] text-slate-500" id="modalMaxP2">/ 2.0đ</span>
             </div>
           </div>
-          <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+          <div class="bg-slate-850 p-2.5 rounded-xl border border-slate-800">
             <div class="text-[11px] text-slate-400 font-medium">Phần III (Trả lời ngắn)</div>
             <div class="flex items-baseline justify-between mt-1">
               <span id="modalScoreP3" class="text-lg font-bold text-amber-400">2.00</span>
-              <span class="text-[10px] text-slate-500">/ 2.0đ</span>
+              <span class="text-[10px] text-slate-500" id="modalMaxP3">/ 2.0đ</span>
             </div>
           </div>
-          <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+          <div id="modalBoxP4" class="bg-slate-850 p-2.5 rounded-xl border border-slate-800">
             <div class="text-[11px] text-slate-400 font-medium">Phần IV (Tự luận)</div>
             <div class="flex items-baseline justify-between mt-1">
               <span id="modalScoreEssay" class="text-lg font-bold text-indigo-400">2.75</span>
-              <span class="text-[10px] text-slate-500">/ 3.0đ</span>
+              <span class="text-[10px] text-slate-500" id="modalMaxP4">/ 3.0đ</span>
             </div>
           </div>
         </div>
 
-        <!-- Trạng thái chấm Tự luận của Gemini AI -->
-        <div id="modalEssayStatusBox" class="bg-slate-850 p-3 rounded-2xl border border-slate-750 space-y-1.5">
+        <!-- Trạng thái tự luận (nếu có) -->
+        <div id="modalEssayStatusBox" class="bg-slate-850 p-3 rounded-2xl border border-slate-800 space-y-1.5">
           <div class="flex items-center justify-between">
             <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
               <i class="ph-bold ph-robot text-teal-400"></i>
@@ -369,7 +518,7 @@
             </span>
           </div>
           <p id="modalEssayFeedback" class="text-xs text-slate-400 italic">
-            Hệ thống đang gửi ảnh bài tự luận lên Gemini API phân tích từng bước...
+            Đang phân tích lời giải Bài 1 & Bài 2...
           </p>
         </div>
 
@@ -378,15 +527,12 @@
           <a id="modalWarpedLink" href="#" target="_blank" class="flex-1 text-center py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 rounded-xl border border-slate-700 transition">
             Xem Phiếu Nắn Thẳng
           </a>
-          <a id="modalEssayLink" href="#" target="_blank" class="flex-1 text-center py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-teal-300 rounded-xl border border-slate-700 transition">
-            Xem Ảnh Tự Luận
-          </a>
         </div>
 
       </div>
 
-      <!-- Footer Modal: Nút Chấm Tiếp -->
-      <div class="p-3 bg-slate-850 border-t border-slate-800">
+      <!-- Footer Modal -->
+      <div class="p-3 bg-slate-900 border-t border-slate-800">
         <button onclick="closeResultModal()" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-600/30 transition">
           TIẾP TỤC QUÉT BÀI TIẾP THEO
         </button>
@@ -397,30 +543,30 @@
 
   <!-- ==================== JAVASCRIPT XỬ LÝ TOÀN BỘ LOGIC ==================== -->
   <script>
-    // --- 1. KHỞI TẠO BIẾN TOÀN CỤC & ÂM THANH BEEP ---
+    // --- 1. BIẾN TOÀN CỤC & ÂM THANH BEEP ---
     let soundEnabled = true;
     let currentFacingMode = 'environment';
     let currentStream = null;
     let activeResultId = null;
     let pollInterval = null;
+    let autoScanTimer = null;
+    let isScanningLocked = false;
+    let currentExams = [];
+    let activeExamId = 1;
 
-    // Web Audio API để phát tiếng BEEP chuẩn xác
     let audioCtx = null;
     function playBeepSound() {
       if (!soundEnabled) return;
       try {
-        if (!audioCtx) {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.connect(gain);
         gain.connect(audioCtx.destination);
 
-        // Âm beep tần số 1500Hz trong 120ms (chuẩn tiếng máy quét TNMaker / Barcode)
+        // Âm beep tần số 1500Hz -> 1800Hz trong 120ms chuẩn TNMaker
         osc.type = 'sine';
         osc.frequency.setValueAtTime(1500, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(1800, audioCtx.currentTime + 0.12);
@@ -431,10 +577,7 @@
         osc.start(audioCtx.currentTime);
         osc.stop(audioCtx.currentTime + 0.12);
 
-        // Kèm theo hiệu ứng rung trên thiết bị di động
-        if (navigator.vibrate) {
-          navigator.vibrate([100, 40, 80]);
-        }
+        if (navigator.vibrate) navigator.vibrate([120, 50, 100]);
       } catch (err) {
         console.warn("Không thể phát âm thanh:", err);
       }
@@ -451,7 +594,7 @@
       }
     }
 
-    // --- 2. QUẢN LÝ CAMERA THỜI GIAN THỰC ---
+    // --- 2. CAMERA & THUẬT TOÁN TỰ ĐỘNG BẮT 4 GÓC THỜI GIAN THỰC ---
     async function startCamera() {
       const video = document.getElementById('videoFeed');
       if (currentStream) {
@@ -468,13 +611,17 @@
         };
         currentStream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = currentStream;
+        video.onloadedmetadata = () => {
+          startRealtimeCornerTracking();
+        };
       } catch (err) {
-        console.warn("Lỗi mở camera sau, thử camera mặc định:", err);
+        console.warn("Lỗi camera sau, thử camera mặc định:", err);
         try {
           currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
           video.srcObject = currentStream;
+          video.onloadedmetadata = () => startRealtimeCornerTracking();
         } catch (e) {
-          alert("Không thể truy cập camera. Vui lòng cấp quyền hoặc dùng tính năng tải ảnh.");
+          console.warn("Không mở được camera:", e);
         }
       }
     }
@@ -484,8 +631,112 @@
       startCamera();
     }
 
-    // --- 3. CHỤP FRAME & GỬI VỀ ENDPOINT /api/scan ---
+    // Vòng lặp phát hiện 4 góc thời gian thực (Real-time Corner Tracking Loop)
+    let cornerStableCount = 0;
+    function startRealtimeCornerTracking() {
+      const video = document.getElementById('videoFeed');
+      const trackerCanvas = document.getElementById('trackerCanvas');
+      const ctx = trackerCanvas.getContext('2d');
+
+      trackerCanvas.width = 320;
+      trackerCanvas.height = 450;
+
+      setInterval(() => {
+        if (!video.videoWidth || isScanningLocked) return;
+
+        // Vẽ frame thu nhỏ lên canvas phân tích
+        ctx.drawImage(video, 0, 0, trackerCanvas.width, trackerCanvas.height);
+        const imgData = ctx.getImageData(0, 0, trackerCanvas.width, trackerCanvas.height);
+        const d = imgData.data;
+        const w = trackerCanvas.width;
+        const h = trackerCanvas.height;
+
+        // Tính độ sáng nền trung tâm (màu giấy) để thích ứng mọi điều kiện ánh sáng
+        let paperSum = 0, paperCount = 0;
+        for (let y = Math.floor(h * 0.35); y < Math.floor(h * 0.65); y += 8) {
+          for (let x = Math.floor(w * 0.35); x < Math.floor(w * 0.65); x += 8) {
+            const idx = (y * w + x) * 4;
+            paperSum += (d[idx] + d[idx+1] + d[idx+2]) / 3;
+            paperCount++;
+          }
+        }
+        const avgPaperLight = paperCount > 0 ? (paperSum / paperCount) : 180;
+        // Điểm marker đen tối hơn đáng kể so với nền giấy
+        const darkThreshold = Math.min(115, Math.max(50, avgPaperLight * 0.62));
+
+        function checkCornerDarkness(x1, y1, x2, y2) {
+          let darkCount = 0;
+          let total = 0;
+          for (let y = y1; y < y2; y += 3) {
+            for (let x = x1; x < x2; x += 3) {
+              const idx = (y * w + x) * 4;
+              const gray = 0.299 * d[idx] + 0.587 * d[idx+1] + 0.114 * d[idx+2];
+              if (gray < darkThreshold) darkCount++;
+              total++;
+            }
+          }
+          return total > 0 ? (darkCount / total) : 0;
+        }
+
+        // Tọa độ 4 góc mục tiêu trong khung ngắm A4
+        const tlDark = checkCornerDarkness(Math.floor(w * 0.10), Math.floor(h * 0.14), Math.floor(w * 0.26), Math.floor(h * 0.26));
+        const trDark = checkCornerDarkness(Math.floor(w * 0.74), Math.floor(h * 0.14), Math.floor(w * 0.90), Math.floor(h * 0.26));
+        const blDark = checkCornerDarkness(Math.floor(w * 0.10), Math.floor(h * 0.74), Math.floor(w * 0.26), Math.floor(h * 0.86));
+        const brDark = checkCornerDarkness(Math.floor(w * 0.74), Math.floor(h * 0.74), Math.floor(w * 0.90), Math.floor(h * 0.86));
+
+        const tlActive = tlDark > 0.035;
+        const trActive = trDark > 0.035;
+        const blActive = blDark > 0.035;
+        const brActive = brDark > 0.035;
+
+        // Cập nhật trạng thái từng marker góc trên giao diện
+        updateCornerVisual('markerTL', tlActive);
+        updateCornerVisual('markerTR', trActive);
+        updateCornerVisual('markerBL', blActive);
+        updateCornerVisual('markerBR', brActive);
+
+        const cornersCount = (tlActive ? 1 : 0) + (trActive ? 1 : 0) + (blActive ? 1 : 0) + (brActive ? 1 : 0);
+
+        if (cornersCount === 4) {
+          cornerStableCount++;
+          document.getElementById('reticleFrame').classList.add('locked');
+          document.getElementById('statusText').innerText = `ĐÃ BẮT 4 GÓC! TỰ ĐỘNG CHẤM... (${cornerStableCount}/2)`;
+          document.getElementById('scanStatusBadge').className = "bg-emerald-950/90 backdrop-blur border border-emerald-400 text-emerald-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg shadow-emerald-500/40";
+          document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+
+          // Khi giữ ổn định trọn vẹn 4 góc trong 2 nhịp (~0.3s) -> TỰ ĐỘNG CHẤM BÀI NGAY!
+          if (cornerStableCount >= 2) {
+            cornerStableCount = 0;
+            captureAndScan();
+          }
+        } else {
+          cornerStableCount = 0;
+          document.getElementById('reticleFrame').classList.remove('locked');
+          if (cornersCount > 0) {
+            document.getElementById('statusText').innerText = `Đã bắt ${cornersCount}/4 góc - Lia camera đủ 4 góc phiếu`;
+            document.getElementById('scanStatusBadge').className = "bg-amber-950/80 backdrop-blur border border-amber-400 text-amber-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg";
+            document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-amber-400";
+          } else {
+            document.getElementById('statusText').innerText = "Căn 4 marker đen vào 4 góc";
+            document.getElementById('scanStatusBadge').className = "bg-black/70 backdrop-blur border border-amber-500/40 text-amber-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg";
+            document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-amber-400 animate-ping";
+          }
+        }
+      }, 150);
+    }
+
+    function updateCornerVisual(elemId, isActive) {
+      const el = document.getElementById(elemId);
+      if (isActive) {
+        el.className = "w-5 h-5 bg-emerald-400 rounded-sm shadow-lg shadow-emerald-400/80 animate-pulse";
+      } else {
+        el.className = "w-4 h-4 bg-amber-400/60 rounded-sm";
+      }
+    }
+
+    // --- 3. CHỤP FRAME & GỬI CHẤM OMR ---
     async function captureAndScan() {
+      if (isScanningLocked) return;
       const video = document.getElementById('videoFeed');
       const canvas = document.getElementById('captureCanvas');
       if (!video.videoWidth) {
@@ -493,6 +744,7 @@
         return;
       }
 
+      isScanningLocked = true;
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
@@ -516,7 +768,7 @@
     async function testWithSampleSheet() {
       showLoading(true);
       try {
-        const response = await fetch('/grade-sample', { method: 'POST' });
+        const response = await fetch(`/api/grade-sample?exam_id=${activeExamId}`, { method: 'POST' });
         const data = await response.json();
         showLoading(false);
 
@@ -538,8 +790,9 @@
       try {
         const formData = new FormData();
         formData.append("base64_image", base64Image);
+        formData.append("exam_id", activeExamId);
 
-        const response = await fetch("/scan", {
+        const response = await fetch("/api/scan", {
           method: "POST",
           body: formData
         });
@@ -548,17 +801,16 @@
         showLoading(false);
 
         if (data.success) {
-          // Phát tiếng Beep tức thì!
           playBeepSound();
-          // Hiển thị Popup kết quả
           displayResultModal(data);
-          // Nạp lại danh sách bảng điểm
           loadResultsList();
         } else {
           alert("Lỗi chấm bài: " + (data.detail || "Không nhận diện được phiếu"));
+          isScanningLocked = false;
         }
       } catch (err) {
         showLoading(false);
+        isScanningLocked = false;
         alert("Lỗi kết nối máy chủ: " + err.message);
       }
     }
@@ -567,36 +819,40 @@
       document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
     }
 
-    // --- 4. HIỂN THỊ MODAL KẾT QUẢ & CẬP NHẬT TỰ LUẬN NGẦM ---
+    // --- 4. HIỂN THỊ MODAL KẾT QUẢ & TIẾN TRÌNH AI ---
     function displayResultModal(data) {
       activeResultId = data.result_id;
       document.getElementById('modalSbd').innerText = data.sbd || "000000";
-      document.getElementById('modalExamCode').innerText = data.exam_code || "0101";
+      document.getElementById('modalExamCode').innerText = data.exam_code || "101";
       document.getElementById('modalTimeNow').innerText = new Date().toLocaleTimeString('vi-VN');
 
       document.getElementById('modalScoreP1').innerText = (data.scores.p1 || 0).toFixed(2);
       document.getElementById('modalScoreP2').innerText = (data.scores.p2 || 0).toFixed(2);
       document.getElementById('modalScoreP3').innerText = (data.scores.p3 || 0).toFixed(2);
-      document.getElementById('modalScoreEssay').innerText = (data.scores.essay || 0).toFixed(2);
       document.getElementById('modalTotalScore').innerText = (data.scores.total || data.scores.omr_total || 0).toFixed(2);
 
+      const is4Part = (data.sheet_type === '4_part');
+      document.getElementById('modalBoxP4').style.display = is4Part ? 'block' : 'none';
+      document.getElementById('modalEssayStatusBox').style.display = is4Part ? 'block' : 'none';
+
+      if (is4Part) {
+        document.getElementById('modalScoreEssay').innerText = (data.scores.essay || 0).toFixed(2);
+        updateEssayUI(data.essay_status, data.scores.essay, null);
+      }
+
       document.getElementById('modalWarpedLink').href = data.warped_url;
-      document.getElementById('modalEssayLink').href = data.essay_url;
-
-      // Trạng thái tự luận
-      updateEssayUI(data.essay_status, data.scores.essay, null);
-
       document.getElementById('resultModal').classList.remove('hidden');
 
-      // Bắt đầu thăm dò (polling) kết quả tự luận ngầm từ Gemini AI
-      if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(checkEssayProgress, 2500);
+      if (is4Part) {
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(checkEssayProgress, 2500);
+      }
     }
 
     async function checkEssayProgress() {
       if (!activeResultId) return;
       try {
-        const res = await fetch(`/results/${activeResultId}`);
+        const res = await fetch(`/api/results/${activeResultId}`);
         if (!res.ok) return;
         const data = await res.json();
         if (data.essay_status === 'COMPLETED' || data.essay_status === 'ERROR') {
@@ -614,20 +870,16 @@
     function updateEssayUI(status, score, feedback) {
       const badge = document.getElementById('modalEssayBadge');
       const text = document.getElementById('modalEssayFeedback');
-
       if (status === 'COMPLETED') {
-        badge.className = "text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+        badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
         badge.innerText = `Đã chấm xong (+${score.toFixed(2)}đ)`;
-        
-        let comment = "Bài làm tự luận đã được hoàn thành.";
-        if (feedback && feedback.nhan_xet) comment = feedback.nhan_xet;
-        text.innerText = comment;
+        text.innerText = (feedback && feedback.nhan_xet) ? feedback.nhan_xet : "Bài làm tự luận đã được AI chấm xong.";
       } else if (status === 'ERROR') {
-        badge.className = "text-[10px] px-2 py-0.5 rounded-full font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20";
+        badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20";
         badge.innerText = "Lỗi chấm tự luận";
         text.innerText = (feedback && feedback.error) ? feedback.error : "Không thể chấm bài tự luận.";
       } else {
-        badge.className = "text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20";
+        badge.className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20";
         badge.innerText = "Gemini AI đang chấm ngầm...";
         text.innerText = "Hệ thống đang gọi Gemini AI phân tích lời giải Bài 1 & Bài 2...";
       }
@@ -636,12 +888,197 @@
     function closeResultModal() {
       if (pollInterval) clearInterval(pollInterval);
       document.getElementById('resultModal').classList.add('hidden');
+      isScanningLocked = false;
     }
 
-    // --- 5. QUẢN LÝ BẢNG ĐIỂM & DANH SÁCH BÀI THI ---
+    // --- 5. QUẢN LÝ BÀI CHẤM (EXAMS) & TẠO MỚI ---
+    async function loadExamsList() {
+      try {
+        const res = await fetch('/api/exams');
+        currentExams = await res.json();
+        
+        // Cập nhật dropdown ở thanh Camera
+        const select = document.getElementById('activeExamSelect');
+        select.innerHTML = currentExams.map(ex => `
+          <option value="${ex.id}" ${ex.id === activeExamId ? 'selected' : ''}>
+            ${ex.title} (${ex.sheet_type === '4_part' ? 'Mẫu 4 phần' : 'Mẫu 3 phần'})
+          </option>
+        `).join('');
+
+        updateActiveExamBadge();
+
+        // Render danh sách trong tab Exams
+        const container = document.getElementById('examsListContainer');
+        container.innerHTML = currentExams.map(ex => `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3 shadow-sm hover:border-slate-700 transition">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-3 h-3 rounded-full ${ex.id === activeExamId ? 'bg-emerald-400 animate-ping' : 'bg-slate-600'}"></span>
+                <h3 class="font-bold text-white text-sm">${ex.title}</h3>
+              </div>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${ex.sheet_type === '4_part' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20'}">
+                ${ex.sheet_type === '4_part' ? 'Mẫu 4 Phần (Có Tự Luận)' : 'Mẫu 3 Phần (100% Trắc Nghiệm)'}
+              </span>
+            </div>
+
+            <!-- Ma trận câu hỏi và thang điểm -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center bg-slate-950 p-2.5 rounded-xl text-xs">
+              <div>
+                <div class="text-slate-400 text-[10px]">Phần I (TN)</div>
+                <div class="font-bold text-emerald-400">${ex.p1_num} câu (${(ex.p1_num * ex.p1_points).toFixed(2)}đ)</div>
+              </div>
+              <div>
+                <div class="text-slate-400 text-[10px]">Phần II (Đ/S)</div>
+                <div class="font-bold text-sky-400">${ex.p2_num} câu (${(ex.p2_num * 1.0).toFixed(2)}đ)</div>
+              </div>
+              <div>
+                <div class="text-slate-400 text-[10px]">Phần III (TLN)</div>
+                <div class="font-bold text-amber-400">${ex.p3_num} câu (${(ex.p3_num * ex.p3_points).toFixed(2)}đ)</div>
+              </div>
+              <div>
+                <div class="text-slate-400 text-[10px]">Phần IV (TL)</div>
+                <div class="font-bold text-indigo-400">${ex.sheet_type === '4_part' ? `${ex.p4_num} bài (${(ex.p4_num * ex.p4_points).toFixed(2)}đ)` : 'Không có'}</div>
+              </div>
+            </div>
+
+            <!-- Các nút hành động -->
+            <div class="flex items-center justify-between pt-1 text-xs">
+              <span class="font-black text-rose-400">Tổng điểm: ${ex.total_points.toFixed(1)}đ</span>
+              <div class="flex gap-2">
+                <a href="/api/download-sheet?type=${ex.sheet_type}" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700 font-semibold flex items-center gap-1 transition">
+                  <i class="ph-bold ph-printer"></i>
+                  In phiếu
+                </a>
+                <button onclick="selectActiveExam(${ex.id})" class="px-3 py-1.5 ${ex.id === activeExamId ? 'bg-emerald-600/30 text-emerald-400 border border-emerald-500/40' : 'bg-emerald-600 hover:bg-emerald-500 text-white'} rounded-lg font-bold transition">
+                  ${ex.id === activeExamId ? 'Đang chọn' : 'Chọn chấm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        `).join('');
+
+      } catch (err) {
+        console.error("Lỗi nạp danh sách bài thi:", err);
+      }
+    }
+
+    function changeActiveExam() {
+      const select = document.getElementById('activeExamSelect');
+      activeExamId = parseInt(select.value);
+      updateActiveExamBadge();
+      loadResultsList();
+    }
+
+    function selectActiveExam(id) {
+      activeExamId = id;
+      loadExamsList();
+      switchTab('scan');
+    }
+
+    function updateActiveExamBadge() {
+      const cur = currentExams.find(e => e.id === activeExamId);
+      if (cur) {
+        document.getElementById('activeExamBadge').innerText = (cur.sheet_type === '4_part') ? 'Mẫu 4 phần' : 'Mẫu 3 phần';
+        document.getElementById('btnExportExcel').href = `/api/export-excel?exam_id=${activeExamId}`;
+      }
+    }
+
+    function openCreateExamModal() {
+      document.getElementById('createExamModal').classList.remove('hidden');
+      recalcExamPoints();
+    }
+
+    function closeCreateExamModal() {
+      document.getElementById('createExamModal').classList.add('hidden');
+    }
+
+    function toggleSheetTypeForm(type) {
+      const is4 = (type === '4_part');
+      document.getElementById('rowPart4Settings').style.display = is4 ? 'grid' : 'none';
+      
+      document.getElementById('cardSheet3').className = is4 
+        ? "cursor-pointer border-2 border-slate-700 hover:border-emerald-500 rounded-2xl p-3 flex flex-col justify-between transition relative bg-slate-850"
+        : "cursor-pointer border-2 border-emerald-500 rounded-2xl p-3 flex flex-col justify-between transition relative bg-slate-850";
+      
+      document.getElementById('cardSheet4').className = is4 
+        ? "cursor-pointer border-2 border-emerald-500 rounded-2xl p-3 flex flex-col justify-between transition relative bg-slate-850"
+        : "cursor-pointer border-2 border-slate-700 hover:border-emerald-500 rounded-2xl p-3 flex flex-col justify-between transition relative bg-slate-850";
+
+      recalcExamPoints();
+    }
+
+    function recalcExamPoints() {
+      const sheetType = document.querySelector('input[name="sheetTypeRadio"]:checked').value;
+      const p1Num = parseInt(document.getElementById('inpP1Num').value) || 0;
+      const p1Pts = parseFloat(document.getElementById('inpP1Points').value) || 0;
+      const p2Num = parseInt(document.getElementById('inpP2Num').value) || 0;
+      const p3Num = parseInt(document.getElementById('inpP3Num').value) || 0;
+      const p3Pts = parseFloat(document.getElementById('inpP3Points').value) || 0;
+
+      let p4Total = 0;
+      if (sheetType === '4_part') {
+        const p4Num = parseInt(document.getElementById('inpP4Num').value) || 0;
+        const p4Pts = parseFloat(document.getElementById('inpP4Points').value) || 0;
+        p4Total = p4Num * p4Pts;
+      }
+
+      const total = (p1Num * p1Pts) + (p2Num * 1.0) + (p3Num * p3Pts) + p4Total;
+      document.getElementById('calculatedTotalPoints').innerText = `Tổng: ${total.toFixed(2)}đ`;
+    }
+
+    async function submitCreateExam() {
+      const title = document.getElementById('inpExamTitle').value.trim();
+      if (!title) {
+        alert("Vui lòng nhập tên bài kiểm tra!");
+        return;
+      }
+      const sheetType = document.querySelector('input[name="sheetTypeRadio"]:checked').value;
+      const p1Num = parseInt(document.getElementById('inpP1Num').value) || 12;
+      const p1Pts = parseFloat(document.getElementById('inpP1Points').value) || 0.25;
+      const p2Num = parseInt(document.getElementById('inpP2Num').value) || 2;
+      const p2Mode = document.getElementById('inpP2Mode').value;
+      const p3Num = parseInt(document.getElementById('inpP3Num').value) || 4;
+      const p3Pts = parseFloat(document.getElementById('inpP3Points').value) || 0.5;
+      const p4Num = sheetType === '4_part' ? (parseInt(document.getElementById('inpP4Num').value) || 2) : 0;
+      const p4Pts = sheetType === '4_part' ? (parseFloat(document.getElementById('inpP4Points').value) || 1.5) : 0.0;
+      const totalPts = (p1Num * p1Pts) + (p2Num * 1.0) + (p3Num * p3Pts) + (p4Num * p4Pts);
+
+      try {
+        const res = await fetch('/api/exams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title,
+            sheet_type: sheetType,
+            p1_num: p1Num,
+            p1_points: p1Pts,
+            p2_num: p2Num,
+            p2_mode: p2Mode,
+            p3_num: p3Num,
+            p3_points: p3Pts,
+            p4_num: p4Num,
+            p4_points: p4Pts,
+            total_points: totalPts
+          })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          activeExamId = data.exam_id;
+          closeCreateExamModal();
+          await loadExamsList();
+          switchTab('scan');
+          alert(`Đã tạo thành công bài chấm: ${title}`);
+        }
+      } catch (err) {
+        alert("Lỗi tạo bài chấm: " + err.message);
+      }
+    }
+
+    // --- 6. QUẢN LÝ BẢNG ĐIỂM & DANH SÁCH BÀI THI ---
     async function loadResultsList() {
       try {
-        const res = await fetch('/results');
+        const res = await fetch(`/api/results?exam_id=${activeExamId}`);
         const results = await res.json();
         const container = document.getElementById('resultsList');
         document.getElementById('totalScannedCount').innerText = `Đã chấm: ${results.length} bài thi`;
@@ -650,19 +1087,19 @@
           container.innerHTML = `
             <div class="text-center py-12 text-slate-500">
               <i class="ph-light ph-tray text-4xl mb-2"></i>
-              <p class="text-sm">Chưa có bài thi nào được chấm.</p>
+              <p class="text-sm">Chưa có bài thi nào được chấm trong bài này.</p>
             </div>
           `;
           return;
         }
 
         container.innerHTML = results.map(item => `
-          <div class="bg-slate-800/80 backdrop-blur border border-slate-700/60 rounded-2xl p-3.5 space-y-2 shadow-sm hover:border-slate-600 transition">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 space-y-2 shadow-sm hover:border-slate-700 transition">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full ${item.essay_status === 'COMPLETED' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}"></span>
+                <span class="w-2.5 h-2.5 rounded-full ${item.essay_status === 'COMPLETED' || item.essay_status === 'SKIPPED' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}"></span>
                 <span class="font-bold text-white tracking-wider text-sm">SBD: ${item.sbd}</span>
-                <span class="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-md font-mono">Đề ${item.exam_code}</span>
+                <span class="text-[11px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md font-mono">Đề ${item.exam_code}</span>
               </div>
               <div class="text-right">
                 <span class="text-lg font-black text-rose-500">${item.total_score.toFixed(2)}</span>
@@ -670,8 +1107,7 @@
               </div>
             </div>
 
-            <!-- Điểm 4 phần tóm tắt -->
-            <div class="grid grid-cols-4 gap-1.5 text-center bg-slate-900/60 p-2 rounded-xl text-[11px]">
+            <div class="grid grid-cols-4 gap-1.5 text-center bg-slate-950 p-2 rounded-xl text-[11px]">
               <div>
                 <div class="text-slate-500 text-[10px]">P.I (TN)</div>
                 <div class="font-bold text-emerald-400">${item.score_p1.toFixed(2)}</div>
@@ -686,13 +1122,12 @@
               </div>
               <div>
                 <div class="text-slate-500 text-[10px]">P.IV (TL)</div>
-                <div class="font-bold text-indigo-400">${item.score_essay.toFixed(2)}</div>
+                <div class="font-bold text-indigo-400">${item.sheet_type === '4_part' ? item.score_essay.toFixed(2) : '-'}</div>
               </div>
             </div>
 
-            <!-- Nhận xét tự luận nếu có -->
             ${item.essay_feedback && item.essay_feedback.nhan_xet ? `
-              <p class="text-[11px] text-slate-400 italic bg-slate-850 p-2 rounded-lg border border-slate-750">
+              <p class="text-[11px] text-slate-400 italic bg-slate-950/70 p-2 rounded-lg border border-slate-800">
                 <strong class="text-slate-300 not-italic">Nhận xét:</strong> ${item.essay_feedback.nhan_xet}
               </p>
             ` : ''}
@@ -704,66 +1139,27 @@
       }
     }
 
-    // --- 6. QUẢN LÝ ĐÁP ÁN MÃ ĐỀ ---
-    async function loadKeysList() {
-      try {
-        const res = await fetch('/keys');
-        const keys = await res.json();
-        const container = document.getElementById('keysContainer');
-        document.getElementById('keysCount').innerText = `${keys.length} mã đề`;
-
-        container.innerHTML = keys.map(k => `
-          <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-750 space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="font-bold text-sm text-emerald-400">Mã Đề: ${k.exam_code}</span>
-              <span class="text-xs text-slate-400">${k.exam_title || 'Đề thi Toán'}</span>
-            </div>
-            <div class="text-xs text-slate-400 space-y-1">
-              <div><strong>Phần I (12 câu):</strong> 1-A, 2-B, 3-C, 4-D... (0.25đ/câu)</div>
-              <div><strong>Phần II (2 câu Đ/S):</strong> Quy chế lũy tiến Bộ GD&ĐT (0.1, 0.25, 0.5, 1.0đ)</div>
-              <div><strong>Phần III (4 câu TLN):</strong> C1: 12.5, C2: -3.4, C3: 0.75, C4: 100 (0.5đ/câu)</div>
-              <div><strong>Phần IV (Tự luận):</strong> Bài 1 (1.5đ) | Bài 2 (1.5đ) - Chấm bởi Gemini AI</div>
-            </div>
-          </div>
-        `).join('');
-
-      } catch (e) {
-        console.error("Lỗi nạp danh sách đáp án:", e);
-      }
-    }
-
-    function saveApiKey() {
-      const key = document.getElementById('geminiApiKeyInput').value.trim();
-      if (!key) {
-        alert("Vui lòng nhập API Key!");
-        return;
-      }
-      localStorage.setItem('GEMINI_API_KEY', key);
-      alert("Đã lưu API Key vào trình duyệt!");
-    }
-
     // --- 7. ĐIỀU HƯỚNG TABS ---
     function switchTab(tabId) {
       document.getElementById('tab-scan').classList.add('hidden');
+      document.getElementById('tab-exams').classList.add('hidden');
       document.getElementById('tab-results').classList.add('hidden');
-      document.getElementById('tab-keys').classList.add('hidden');
 
       document.getElementById('nav-scan').className = "flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition";
+      document.getElementById('nav-exams').className = "flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition";
       document.getElementById('nav-results').className = "flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition";
-      document.getElementById('nav-keys').className = "flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition";
 
       document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-      document.getElementById(`nav-${tabId}`).className = "flex flex-col items-center gap-1 text-emerald-400 font-semibold transition";
+      document.getElementById(`nav-${tabId}`).className = "flex flex-col items-center gap-1 text-emerald-400 font-bold transition";
 
+      if (tabId === 'exams') loadExamsList();
       if (tabId === 'results') loadResultsList();
-      if (tabId === 'keys') loadKeysList();
     }
 
-    // Tự động khởi chạy camera khi mở trang
     window.addEventListener('DOMContentLoaded', () => {
       startCamera();
+      loadExamsList();
       loadResultsList();
-      loadKeysList();
     });
   </script>
 </body>

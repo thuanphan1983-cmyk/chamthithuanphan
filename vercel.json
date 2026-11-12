@@ -1,7 +1,52 @@
 {
+  "version": 2,
   "rewrites": [
     {
       "source": "/api/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/exams",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/exams/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/scan",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/grade-sample",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/results",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/results/(.*)",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/download-sheet",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/export-excel",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/sample-sheet",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/keys",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/set-keys",
       "destination": "/api/index"
     },
     {

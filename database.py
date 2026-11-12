@@ -1,6 +1,8 @@
 """
 Module database.py - Quản lý cơ sở dữ liệu SQLite cho hệ thống chấm thi OMR & AI
-Lưu trữ thông tin cấu hình đề thi, đáp án chuẩn, barem tự luận và kết quả bài làm.
+Hỗ trợ quản lý bài kiểm tra (Exams), lựa chọn mẫu phiếu (3 phần / 4 phần),
+tùy chỉnh số câu và thang điểm từng phần, quản lý đáp án các mã đề và kết quả chấm.
+Hỗ trợ cả môi trường Local và Vercel Serverless.
 """
 
 import sqlite3
@@ -28,57 +30,101 @@ def init_db():
     with get_connection() as conn:
         cursor = conn.cursor()
         
-        # 1. Bảng đề thi và đáp án chuẩn
+        # 1. Bảng Quản lý Bài Kiểm Tra (Exams)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS exams (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                sheet_type TEXT NOT NULL DEFAULT '4_part', -- '3_part' hoặc '4_part'
+                p1_num INTEGER NOT NULL DEFAULT 12,        -- Số câu trắc nghiệm nhiều lựa chọn
+                p1_points REAL NOT NULL DEFAULT 0.25,      -- Điểm mỗi câu TN
+                p2_num INTEGER NOT NULL DEFAULT 2,         -- Số câu Đúng/Sai
+                p2_mode TEXT NOT NULL DEFAULT 'progressive',-- Cách tính điểm: 'progressive' (chuẩn BGD: 0.1, 0.25, 0.5, 1.0)
+                p3_num INTEGER NOT NULL DEFAULT 4,         -- Số câu trả lời ngắn
+                p3_points REAL NOT NULL DEFAULT 0.5,       -- Điểm mỗi câu trả lời ngắn
+                p4_num INTEGER NOT NULL DEFAULT 2,         -- Số bài tự luận (0 nếu là phiếu 3 phần)
+                p4_points REAL NOT NULL DEFAULT 1.5,       -- Điểm mỗi bài tự luận
+                total_points REAL NOT NULL DEFAULT 10.0,   -- Tổng điểm đề thi
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # 2. Bảng Đáp án các Mã đề thi (Answer Keys)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS answer_keys (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                exam_code TEXT UNIQUE NOT NULL,
+                exam_id INTEGER NOT NULL DEFAULT 1,
+                exam_code TEXT NOT NULL,                  -- Ví dụ '101', '102'
                 exam_title TEXT DEFAULT 'Kiểm tra Toán THPT',
-                part1_keys TEXT NOT NULL,  -- JSON: {"1": "A", "2": "B", ... "12": "D"}
-                part2_keys TEXT NOT NULL,  -- JSON: {"1": {"a": "D", "b": "S", ...}, "2": {...}}
-                part3_keys TEXT NOT NULL,  -- JSON: {"1": "12.5", "2": "-3.4", ...}
-                essay_rubric TEXT NOT NULL, -- JSON: barem tiêu chí và lời giải chuẩn bài 1, bài 2
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                part1_keys TEXT NOT NULL,                 -- JSON: {"1": "A", "2": "B", ...}
+                part2_keys TEXT NOT NULL,                 -- JSON: {"1": {"a": "D", "b": "S", ...}}
+                part3_keys TEXT NOT NULL,                 -- JSON: {"1": "12.5", "2": "-3.4", ...}
+                essay_rubric TEXT NOT NULL,                -- JSON barem tiêu chí và lời giải tự luận
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(exam_id, exam_code)
             )
         """)
         
-        # 2. Bảng kết quả bài thi của thí sinh
+        # 3. Bảng Kết quả bài thi của thí sinh (Results)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS results (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                sbd TEXT NOT NULL,              -- Số báo danh (6 ký tự, ví dụ '010001')
-                exam_code TEXT NOT NULL,        -- Mã đề (ví dụ '0101')
-                score_p1 REAL DEFAULT 0.0,      -- Điểm phần I (tối đa 3.0đ)
-                score_p2 REAL DEFAULT 0.0,      -- Điểm phần II (tối đa 2.0đ)
-                score_p3 REAL DEFAULT 0.0,      -- Điểm phần III (tối đa 2.0đ)
-                score_essay REAL DEFAULT 0.0,   -- Điểm phần IV tự luận (tối đa 3.0đ)
-                total_score REAL DEFAULT 0.0,   -- Tổng điểm (thang 10.0)
-                details_p1 TEXT,                -- JSON chi tiết câu chọn, đúng/sai phần 1
-                details_p2 TEXT,                -- JSON chi tiết các ý a, b, c, d phần 2
-                details_p3 TEXT,                -- JSON chi tiết đáp số nhận diện phần 3
-                essay_feedback TEXT,            -- JSON nhận xét, phân tích lỗi sai từ Gemini AI
-                essay_status TEXT DEFAULT 'PENDING', -- PENDING / COMPLETED / SKIPPED / ERROR
-                warped_image_path TEXT,         -- Đường dẫn lưu ảnh phiếu đã nắn thẳng
-                essay_image_path TEXT,          -- Đường dẫn lưu ảnh vùng tự luận đã cắt
+                exam_id INTEGER NOT NULL DEFAULT 1,
+                sbd TEXT NOT NULL,                        -- Số báo danh (6 ký tự, ví dụ '010008')
+                exam_code TEXT NOT NULL,                  -- Mã đề (ví dụ '101')
+                sheet_type TEXT DEFAULT '4_part',         -- '3_part' hoặc '4_part'
+                score_p1 REAL DEFAULT 0.0,                -- Điểm phần I
+                score_p2 REAL DEFAULT 0.0,                -- Điểm phần II
+                score_p3 REAL DEFAULT 0.0,                -- Điểm phần III
+                score_essay REAL DEFAULT 0.0,             -- Điểm phần IV tự luận
+                total_score REAL DEFAULT 0.0,             -- Tổng điểm bài thi
+                details_p1 TEXT,                          -- JSON chi tiết câu chọn, đúng/sai phần 1
+                details_p2 TEXT,                          -- JSON chi tiết các ý a, b, c, d phần 2
+                details_p3 TEXT,                          -- JSON chi tiết đáp số nhận diện phần 3
+                essay_feedback TEXT,                      -- JSON nhận xét, phân tích lỗi sai từ Gemini AI
+                essay_status TEXT DEFAULT 'PENDING',      -- PENDING / COMPLETED / SKIPPED / ERROR
+                warped_image_path TEXT,                   -- Đường dẫn lưu ảnh phiếu đã nắn thẳng
+                essay_image_path TEXT,                    -- Đường dẫn lưu ảnh vùng tự luận đã cắt
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        # Tự động di trú bảng nếu đã tồn tại từ phiên bản cũ (Migration)
+        for col_def in [
+            ("answer_keys", "exam_id", "INTEGER NOT NULL DEFAULT 1"),
+            ("results", "exam_id", "INTEGER NOT NULL DEFAULT 1"),
+            ("results", "sheet_type", "TEXT DEFAULT '4_part'"),
+        ]:
+            try:
+                cursor.execute(f"ALTER TABLE {col_def[0]} ADD COLUMN {col_def[1]} {col_def[2]}")
+            except sqlite3.OperationalError:
+                pass  # Cột đã tồn tại
         
         conn.commit()
 
-        # Nạp dữ liệu đáp án mẫu cho mã đề "101", "102", "0101" và "0102" nếu chưa có
-        cursor.execute("SELECT COUNT(*) FROM answer_keys WHERE exam_code = '101' OR exam_code = '0101'")
+        # Nạp dữ liệu mặc định nếu chưa có bài thi nào
+        cursor.execute("SELECT COUNT(*) FROM exams")
         if cursor.fetchone()[0] == 0:
+            # Bài thi 1: Mẫu 4 phần (TN + Đ/S + TLN + Tự luận)
+            cursor.execute("""
+                INSERT INTO exams (id, title, sheet_type, p1_num, p1_points, p2_num, p2_mode, p3_num, p3_points, p4_num, p4_points, total_points)
+                VALUES (1, 'Khảo sát Toán 12 - Mẫu 4 Phần (Có Tự Luận)', '4_part', 12, 0.25, 2, 'progressive', 4, 0.5, 2, 1.5, 10.0)
+            """)
+
+            # Bài thi 2: Mẫu 3 phần (100% Trắc nghiệm: TN + Đ/S + TLN)
+            cursor.execute("""
+                INSERT INTO exams (id, title, sheet_type, p1_num, p1_points, p2_num, p2_mode, p3_num, p3_points, p4_num, p4_points, total_points)
+                VALUES (2, 'Thi thử Tốt nghiệp THPT - Mẫu 3 Phần (100% Trắc Nghiệm)', '3_part', 12, 0.25, 4, 'progressive', 6, 0.5, 0, 0.0, 10.0)
+            """)
+
+            # Đáp án mẫu cho Bài thi 1 (Mã 101 và 102)
             sample_part1 = {str(i): ["A", "B", "C", "D"][(i - 1) % 4] for i in range(1, 13)}
             sample_part2 = {
                 "1": {"a": "D", "b": "S", "c": "D", "d": "S"},
                 "2": {"a": "S", "b": "D", "c": "D", "d": "S"}
             }
             sample_part3 = {
-                "1": "12.5",
-                "2": "-3.4",
-                "3": "0.75",
-                "4": "100"
+                "1": "12.5", "2": "-3.4", "3": "0.75", "4": "100"
             }
             sample_rubric = {
                 "bai_1": {
@@ -100,61 +146,138 @@ def init_db():
                     ]
                 }
             }
-            
-            # Thêm mã đề 101 và 0101
+
             for code in ["101", "0101"]:
                 cursor.execute("""
-                    INSERT OR REPLACE INTO answer_keys (exam_code, exam_title, part1_keys, part2_keys, part3_keys, essay_rubric)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    code,
-                    f"Đề thi Khảo sát Toán THPT - Mã {code}",
-                    json.dumps(sample_part1, ensure_ascii=False),
-                    json.dumps(sample_part2, ensure_ascii=False),
-                    json.dumps(sample_part3, ensure_ascii=False),
-                    json.dumps(sample_rubric, ensure_ascii=False)
-                ))
-            
-            # Mã đề 102 và 0102
+                    INSERT OR REPLACE INTO answer_keys (exam_id, exam_code, exam_title, part1_keys, part2_keys, part3_keys, essay_rubric)
+                    VALUES (1, ?, ?, ?, ?, ?, ?)
+                """, (code, f"Đề thi Khảo sát Toán THPT - Mã {code}", json.dumps(sample_part1, ensure_ascii=False), json.dumps(sample_part2, ensure_ascii=False), json.dumps(sample_part3, ensure_ascii=False), json.dumps(sample_rubric, ensure_ascii=False)))
+
+            # Mã 102
             sample_part1_102 = {str(i): ["B", "C", "D", "A"][(i - 1) % 4] for i in range(1, 13)}
             for code in ["102", "0102"]:
                 cursor.execute("""
-                    INSERT OR REPLACE INTO answer_keys (exam_code, exam_title, part1_keys, part2_keys, part3_keys, essay_rubric)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                    code,
-                    f"Đề thi Khảo sát Toán THPT - Mã {code}",
-                    json.dumps(sample_part1_102, ensure_ascii=False),
-                    json.dumps(sample_part2, ensure_ascii=False),
-                    json.dumps(sample_part3, ensure_ascii=False),
-                    json.dumps(sample_rubric, ensure_ascii=False)
-                ))
-            
+                    INSERT OR REPLACE INTO answer_keys (exam_id, exam_code, exam_title, part1_keys, part2_keys, part3_keys, essay_rubric)
+                    VALUES (1, ?, ?, ?, ?, ?, ?)
+                """, (code, f"Đề thi Khảo sát Toán THPT - Mã {code}", json.dumps(sample_part1_102, ensure_ascii=False), json.dumps(sample_part2, ensure_ascii=False), json.dumps(sample_part3, ensure_ascii=False), json.dumps(sample_rubric, ensure_ascii=False)))
+
+            # Đáp án mẫu cho Bài thi 2 (Mẫu 3 phần)
+            sample_part2_4q = {
+                "1": {"a": "D", "b": "S", "c": "D", "d": "S"},
+                "2": {"a": "S", "b": "D", "c": "D", "d": "S"},
+                "3": {"a": "D", "b": "D", "c": "S", "d": "S"},
+                "4": {"a": "S", "b": "S", "c": "D", "d": "D"}
+            }
+            sample_part3_6q = {
+                "1": "12.5", "2": "-3.4", "3": "0.75", "4": "100", "5": "2025", "6": "0.5"
+            }
+            for code in ["101", "0101"]:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO answer_keys (exam_id, exam_code, exam_title, part1_keys, part2_keys, part3_keys, essay_rubric)
+                    VALUES (2, ?, ?, ?, ?, ?, '{}')
+                """, (code, f"Đề 3 Phần Chuẩn Bộ GD&ĐT - Mã {code}", json.dumps(sample_part1, ensure_ascii=False), json.dumps(sample_part2_4q, ensure_ascii=False), json.dumps(sample_part3_6q, ensure_ascii=False)))
+
             conn.commit()
 
-def get_answer_key(exam_code: str) -> Optional[Dict[str, Any]]:
-    """Lấy đáp án và barem chấm theo mã đề thi (hỗ trợ cả dạng 3 số như '101' hoặc 4 số như '0101')"""
-    code_raw = str(exam_code).strip()
-    code_zfilled = code_raw.zfill(4)
-    code_lstripped = code_raw.lstrip("0") or "0"
-    
+
+# ==============================================================================
+# HÀM QUẢN LÝ BÀI KIỂM TRA (EXAMS)
+# ==============================================================================
+
+def create_exam(
+    title: str,
+    sheet_type: str = "4_part",
+    p1_num: int = 12,
+    p1_points: float = 0.25,
+    p2_num: int = 2,
+    p2_mode: str = "progressive",
+    p3_num: int = 4,
+    p3_points: float = 0.5,
+    p4_num: int = 2,
+    p4_points: float = 1.5,
+    total_points: float = 10.0
+) -> int:
+    """Tạo mới một bài kiểm tra với cấu hình mẫu phiếu và thang điểm tùy chỉnh"""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT * FROM answer_keys 
-            WHERE exam_code = ? OR exam_code = ? OR exam_code = ?
-            ORDER BY id ASC LIMIT 1
-        """, (code_raw, code_zfilled, code_lstripped))
+            INSERT INTO exams (title, sheet_type, p1_num, p1_points, p2_num, p2_mode, p3_num, p3_points, p4_num, p4_points, total_points)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (title, sheet_type, p1_num, p1_points, p2_num, p2_mode, p3_num, p3_points, p4_num, p4_points, total_points))
+        conn.commit()
+        return cursor.lastrowid
+
+def get_exam(exam_id: int) -> Optional[Dict[str, Any]]:
+    """Lấy thông tin cấu hình chi tiết của một bài kiểm tra"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM exams WHERE id = ?", (exam_id,))
         row = cursor.fetchone()
         if not row:
-            # Fallback lấy mã đầu tiên nếu không khớp
-            cursor.execute("SELECT * FROM answer_keys ORDER BY id LIMIT 1")
+            # Fallback lấy bài thi đầu tiên
+            cursor.execute("SELECT * FROM exams ORDER BY id ASC LIMIT 1")
+            row = cursor.fetchone()
+        return dict(row) if row else None
+
+def list_exams() -> List[Dict[str, Any]]:
+    """Lấy danh sách tất cả các bài kiểm tra có trong hệ thống"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM exams ORDER BY id DESC")
+        return [dict(r) for r in cursor.fetchall()]
+
+def delete_exam(exam_id: int):
+    """Xóa một bài kiểm tra cùng đáp án và kết quả liên quan"""
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM exams WHERE id = ?", (exam_id,))
+        cursor.execute("DELETE FROM answer_keys WHERE exam_id = ?", (exam_id,))
+        cursor.execute("DELETE FROM results WHERE exam_id = ?", (exam_id,))
+        conn.commit()
+
+
+# ==============================================================================
+# HÀM QUẢN LÝ ĐÁP ÁN (ANSWER KEYS)
+# ==============================================================================
+
+def get_answer_key(exam_code: str, exam_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+    """
+    Lấy đáp án và barem chấm theo mã đề thi và bài kiểm tra
+    Hỗ trợ cả dạng '101' lẫn '0101'
+    """
+    code_raw = str(exam_code).strip()
+    code_zfilled = code_raw.zfill(4)
+    code_lstripped = code_raw.lstrip("0") or "0"
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        if exam_id:
+            cursor.execute("""
+                SELECT * FROM answer_keys 
+                WHERE exam_id = ? AND (exam_code = ? OR exam_code = ? OR exam_code = ?)
+                ORDER BY id ASC LIMIT 1
+            """, (exam_id, code_raw, code_zfilled, code_lstripped))
+        else:
+            cursor.execute("""
+                SELECT * FROM answer_keys 
+                WHERE exam_code = ? OR exam_code = ? OR exam_code = ?
+                ORDER BY id ASC LIMIT 1
+            """, (code_raw, code_zfilled, code_lstripped))
+            
+        row = cursor.fetchone()
+        if not row:
+            # Fallback lấy mã đầu tiên của bài thi
+            if exam_id:
+                cursor.execute("SELECT * FROM answer_keys WHERE exam_id = ? ORDER BY id ASC LIMIT 1", (exam_id,))
+            else:
+                cursor.execute("SELECT * FROM answer_keys ORDER BY id ASC LIMIT 1")
             row = cursor.fetchone()
             if not row:
                 return None
 
         return {
             "id": row["id"],
+            "exam_id": row["exam_id"],
             "exam_code": row["exam_code"],
             "exam_title": row["exam_title"],
             "part1_keys": json.loads(row["part1_keys"]),
@@ -163,36 +286,45 @@ def get_answer_key(exam_code: str) -> Optional[Dict[str, Any]]:
             "essay_rubric": json.loads(row["essay_rubric"]) if row["essay_rubric"] else {}
         }
 
-def save_answer_key(exam_code: str, exam_title: str, part1: dict, part2: dict, part3: dict, rubric: dict):
-    """Thêm hoặc cập nhật đáp án cho một mã đề"""
+def save_answer_key(exam_code: str, exam_title: str, part1: dict, part2: dict, part3: dict, rubric: dict, exam_id: int = 1):
+    """Thêm hoặc cập nhật đáp án cho một mã đề trong bài thi"""
     code_norm = str(exam_code).strip().zfill(4)
+    code_raw = str(exam_code).strip()
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO answer_keys (exam_code, exam_title, part1_keys, part2_keys, part3_keys, essay_rubric)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(exam_code) DO UPDATE SET
-                exam_title = excluded.exam_title,
-                part1_keys = excluded.part1_keys,
-                part2_keys = excluded.part2_keys,
-                part3_keys = excluded.part3_keys,
-                essay_rubric = excluded.essay_rubric
-        """, (
-            code_norm,
-            exam_title,
-            json.dumps(part1, ensure_ascii=False),
-            json.dumps(part2, ensure_ascii=False),
-            json.dumps(part3, ensure_ascii=False),
-            json.dumps(rubric, ensure_ascii=False)
-        ))
+        for c in set([code_norm, code_raw]):
+            cursor.execute("""
+                INSERT INTO answer_keys (exam_id, exam_code, exam_title, part1_keys, part2_keys, part3_keys, essay_rubric)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(exam_id, exam_code) DO UPDATE SET
+                    exam_title = excluded.exam_title,
+                    part1_keys = excluded.part1_keys,
+                    part2_keys = excluded.part2_keys,
+                    part3_keys = excluded.part3_keys,
+                    essay_rubric = excluded.essay_rubric
+            """, (
+                exam_id, c, exam_title,
+                json.dumps(part1, ensure_ascii=False),
+                json.dumps(part2, ensure_ascii=False),
+                json.dumps(part3, ensure_ascii=False),
+                json.dumps(rubric, ensure_ascii=False)
+            ))
         conn.commit()
 
-def list_all_keys() -> List[Dict[str, Any]]:
+def list_all_keys(exam_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """Danh sách các mã đề thi đã có trong hệ thống"""
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT exam_code, exam_title, created_at FROM answer_keys ORDER BY exam_code ASC")
+        if exam_id:
+            cursor.execute("SELECT exam_id, exam_code, exam_title, created_at FROM answer_keys WHERE exam_id = ? ORDER BY exam_code ASC", (exam_id,))
+        else:
+            cursor.execute("SELECT exam_id, exam_code, exam_title, created_at FROM answer_keys ORDER BY exam_id ASC, exam_code ASC")
         return [dict(r) for r in cursor.fetchall()]
+
+
+# ==============================================================================
+# HÀM QUẢN LÝ KẾT QUẢ CHẤM (RESULTS)
+# ==============================================================================
 
 def save_result(
     sbd: str,
@@ -208,9 +340,11 @@ def save_result(
     essay_feedback: dict,
     essay_status: str,
     warped_image_path: str,
-    essay_image_path: str
+    essay_image_path: str,
+    exam_id: int = 1,
+    sheet_type: str = "4_part"
 ) -> int:
-    """Lưu kết quả chấm thi vào SQLite và trả về result_id"""
+    """Lưu kết quả chấm bài thi vào SQLite"""
     sbd_norm = str(sbd).strip().zfill(6)
     code_norm = str(exam_code).strip().zfill(4)
     
@@ -218,25 +352,18 @@ def save_result(
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO results (
-                sbd, exam_code, score_p1, score_p2, score_p3, score_essay, total_score,
+                exam_id, sbd, exam_code, sheet_type, score_p1, score_p2, score_p3, score_essay, total_score,
                 details_p1, details_p2, details_p3, essay_feedback, essay_status,
                 warped_image_path, essay_image_path
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            sbd_norm,
-            code_norm,
-            round(score_p1, 2),
-            round(score_p2, 2),
-            round(score_p3, 2),
-            round(score_essay, 2),
-            round(total_score, 2),
+            exam_id, sbd_norm, code_norm, sheet_type,
+            round(score_p1, 2), round(score_p2, 2), round(score_p3, 2), round(score_essay, 2), round(total_score, 2),
             json.dumps(details_p1, ensure_ascii=False),
             json.dumps(details_p2, ensure_ascii=False),
             json.dumps(details_p3, ensure_ascii=False),
             json.dumps(essay_feedback, ensure_ascii=False) if essay_feedback else "{}",
-            essay_status,
-            warped_image_path,
-            essay_image_path
+            essay_status, warped_image_path, essay_image_path
         ))
         conn.commit()
         return cursor.lastrowid
@@ -251,36 +378,29 @@ def update_essay_result(result_id: int, score_essay: float, essay_feedback: dict
             new_total = round(row["score_p1"] + row["score_p2"] + row["score_p3"] + score_essay, 2)
             cursor.execute("""
                 UPDATE results
-                SET score_essay = ?,
-                    total_score = ?,
-                    essay_feedback = ?,
-                    essay_status = 'COMPLETED'
+                SET score_essay = ?, total_score = ?, essay_feedback = ?, essay_status = 'COMPLETED'
                 WHERE id = ?
-            """, (
-                round(score_essay, 2),
-                new_total,
-                json.dumps(essay_feedback, ensure_ascii=False),
-                result_id
-            ))
+            """, (round(score_essay, 2), new_total, json.dumps(essay_feedback, ensure_ascii=False), result_id))
             conn.commit()
 
 def mark_essay_failed(result_id: int, error_msg: str):
-    """Đánh dấu chấm tự luận thất bại"""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE results
-            SET essay_status = 'ERROR',
-                essay_feedback = ?
+            SET essay_status = 'ERROR', essay_feedback = ?
             WHERE id = ?
         """, (json.dumps({"error": error_msg}, ensure_ascii=False), result_id))
         conn.commit()
 
-def get_all_results() -> List[Dict[str, Any]]:
+def get_all_results(exam_id: Optional[int] = None) -> List[Dict[str, Any]]:
     """Lấy danh sách tất cả các bài thi đã chấm, sắp xếp SBD tăng dần"""
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM results ORDER BY sbd ASC, id DESC")
+        if exam_id:
+            cursor.execute("SELECT * FROM results WHERE exam_id = ? ORDER BY sbd ASC, id DESC", (exam_id,))
+        else:
+            cursor.execute("SELECT * FROM results ORDER BY sbd ASC, id DESC")
         rows = cursor.fetchall()
         results = []
         for r in rows:
@@ -293,7 +413,6 @@ def get_all_results() -> List[Dict[str, Any]]:
         return results
 
 def get_result_by_id(result_id: int) -> Optional[Dict[str, Any]]:
-    """Lấy thông tin chi tiết một bài thi"""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM results WHERE id = ?", (result_id,))
