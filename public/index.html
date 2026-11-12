@@ -168,7 +168,7 @@
             </h2>
             <p id="totalScannedCount" class="text-xs text-slate-400">Đã chấm: 0 bài thi</p>
           </div>
-          <a href="/api/export-excel" target="_blank" class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition">
+          <a href="/export-excel" target="_blank" class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition">
             <i class="ph-bold ph-file-xls text-lg"></i>
             Xuất Excel (.xlsx)
           </a>
@@ -221,11 +221,11 @@
           </div>
 
           <div class="grid grid-cols-2 gap-2 pt-1">
-            <a href="/api/download-sheet" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-650 text-white text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-600 transition">
+            <a href="/download-sheet" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-650 text-white text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-600 transition">
               <i class="ph-bold ph-download-simple"></i>
               Tải Phiếu Trắng (In)
             </a>
-            <a href="/api/sample-sheet" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-650 text-emerald-400 text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-600 transition">
+            <a href="/sample-sheet" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-650 text-emerald-400 text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-600 transition">
               <i class="ph-bold ph-file-image"></i>
               Tải Phiếu Tô Mẫu
             </a>
@@ -516,7 +516,7 @@
     async function testWithSampleSheet() {
       showLoading(true);
       try {
-        const response = await fetch('/api/grade-sample', { method: 'POST' });
+        const response = await fetch('/grade-sample', { method: 'POST' });
         const data = await response.json();
         showLoading(false);
 
@@ -539,7 +539,7 @@
         const formData = new FormData();
         formData.append("base64_image", base64Image);
 
-        const response = await fetch("/api/scan", {
+        const response = await fetch("/scan", {
           method: "POST",
           body: formData
         });
@@ -596,7 +596,7 @@
     async function checkEssayProgress() {
       if (!activeResultId) return;
       try {
-        const res = await fetch(`/api/results/${activeResultId}`);
+        const res = await fetch(`/results/${activeResultId}`);
         if (!res.ok) return;
         const data = await res.json();
         if (data.essay_status === 'COMPLETED' || data.essay_status === 'ERROR') {
@@ -641,7 +641,7 @@
     // --- 5. QUẢN LÝ BẢNG ĐIỂM & DANH SÁCH BÀI THI ---
     async function loadResultsList() {
       try {
-        const res = await fetch('/api/results');
+        const res = await fetch('/results');
         const results = await res.json();
         const container = document.getElementById('resultsList');
         document.getElementById('totalScannedCount').innerText = `Đã chấm: ${results.length} bài thi`;
@@ -707,7 +707,7 @@
     // --- 6. QUẢN LÝ ĐÁP ÁN MÃ ĐỀ ---
     async function loadKeysList() {
       try {
-        const res = await fetch('/api/keys');
+        const res = await fetch('/keys');
         const keys = await res.json();
         const container = document.getElementById('keysContainer');
         document.getElementById('keysCount').innerText = `${keys.length} mã đề`;
