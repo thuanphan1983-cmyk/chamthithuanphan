@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 from typing import Optional, Dict, Any
 
-from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException, Request
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -98,6 +98,7 @@ def index_page():
     return "<h1>Ứng dụng Chấm thi TNMaker AI đang khởi động...</h1>"
 
 
+@app.post("/scan")
 @app.post("/api/scan")
 async def scan_exam_sheet(
     background_tasks: BackgroundTasks,
@@ -213,12 +214,14 @@ async def scan_exam_sheet(
     }
 
 
+@app.get("/results")
 @app.get("/api/results")
 def list_results():
     """Lấy danh sách tất cả các bài thi đã chấm, sắp xếp SBD tăng dần"""
     return get_all_results()
 
 
+@app.get("/results/{result_id}")
 @app.get("/api/results/{result_id}")
 def get_single_result(result_id: int):
     """Lấy chi tiết một bài thi để cập nhật tiến độ chấm tự luận của AI"""
@@ -228,6 +231,16 @@ def get_single_result(result_id: int):
     return res
 
 
+@app.get("/debug-path")
+def debug_path_endpoint(request: Request):
+    return {
+        "url": str(request.url),
+        "path": request.url.path,
+        "scope_path": request.scope.get("path"),
+        "root_path": request.scope.get("root_path")
+    }
+
+@app.get("/keys")
 @app.get("/api/keys")
 def get_all_exam_keys():
     """Lấy danh sách các mã đề thi đã nạp vào hệ thống"""
@@ -240,6 +253,7 @@ def get_all_exam_keys():
     return details
 
 
+@app.post("/set-keys")
 @app.post("/api/set-keys")
 async def create_or_update_key(data: Dict[str, Any]):
     """Thêm hoặc cập nhật đáp án chuẩn cho mã đề thi"""
@@ -257,6 +271,7 @@ async def create_or_update_key(data: Dict[str, Any]):
     return {"success": True, "message": f"Đã lưu đáp án cho mã đề {exam_code}."}
 
 
+@app.get("/export-excel")
 @app.get("/api/export-excel")
 def export_excel():
     """
@@ -280,6 +295,7 @@ def export_excel():
     )
 
 
+@app.get("/download-sheet")
 @app.get("/api/download-sheet")
 def download_blank_sheet():
     """Tải file ảnh phiếu thi trắng chuẩn A4 (2100 x 2970 px) để in ra giấy"""
@@ -291,6 +307,7 @@ def download_blank_sheet():
     return FileResponse(sheet_path, media_type="image/png", filename="phieu_thi_chuan_A4.png")
 
 
+@app.get("/sample-sheet")
 @app.get("/api/sample-sheet")
 def download_sample_sheet():
     """Tải file ảnh phiếu thi đã tô mẫu (SBD 010008 - Đề 101) để kiểm thử"""
@@ -308,6 +325,7 @@ def download_sample_sheet():
     return FileResponse(sample_path, media_type="image/png", filename="sample_test_sheet.png")
 
 
+@app.post("/grade-sample")
 @app.post("/api/grade-sample")
 async def grade_sample_instant(background_tasks: BackgroundTasks):
     """Route kiểm thử tức thì: Chấm trực tiếp file sample_test_sheet.png (SBD 010008 - Đề 101)"""
