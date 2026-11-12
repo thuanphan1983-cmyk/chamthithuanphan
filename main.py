@@ -115,7 +115,8 @@ def index_page():
 # 0. VERCEL SERVERLESS GATEWAY DISPATCHER
 # ==============================================================================
 
-@app.api_route("/api/index", methods=["GET", "POST", "DELETE"])
+@app.get("/api/index")
+@app.post("/api/index")
 async def vercel_gateway_dispatcher(request: Request, background_tasks: BackgroundTasks):
     """
     Dispatcher tối ưu hóa riêng cho Vercel Serverless Function
@@ -181,7 +182,7 @@ async def vercel_gateway_dispatcher(request: Request, background_tasks: Backgrou
         exam_id = int(exam_id_param) if (exam_id_param and exam_id_param.isdigit()) else None
         return get_all_exam_keys(exam_id=exam_id)
 
-    return {"status": "ok", "service": "TNMaker AI Pro Vercel Gateway", "path": path}
+    return {"status": "ok", "service": "TNMaker AI Pro Vercel Gateway", "path": path, "url": str(request.url), "query": dict(request.query_params)}
 
 
 # ==============================================================================
