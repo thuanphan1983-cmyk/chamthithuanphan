@@ -56,18 +56,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.middleware("http")
-async def vercel_url_middleware(request: Request, call_next):
-    """
-    Middleware khôi phục URL gốc khi chạy trên Vercel Serverless
-    Vercel chuyển tiếp request qua header x-matched-path
-    """
-    matched_path = request.headers.get("x-matched-path")
-    if matched_path and request.url.path in ["/api/index", "/api", "/api/"]:
-        clean_path = matched_path.split("?")[0]
-        if clean_path:
-            request.scope["path"] = clean_path
-    return await call_next(request)
+@app.get("/api/debug-headers")
+@app.get("/debug-headers")
+def debug_headers_endpoint(request: Request):
+    return {
+        "url_path": request.url.path,
+        "scope_path": request.scope.get("path"),
+        "scope_raw_path": str(request.scope.get("raw_path")),
+        "headers": dict(request.headers)
+    }
 
 # Cấu hình đường dẫn linh hoạt hỗ trợ cả Local và Vercel Serverless
 IS_VERCEL = os.getenv("VERCEL") == "1" or "VERCEL" in os.environ or "AWS_LAMBDA_FUNCTION_NAME" in os.environ
