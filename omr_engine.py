@@ -180,7 +180,7 @@ def detect_markers_and_warp(image_bgr: np.ndarray) -> Tuple[np.ndarray, bool]:
             ], dtype="float32")
             M = cv2.getPerspectiveTransform(rect, dst)
             warped = cv2.warpPerspective(image_bgr, M, (CANVAS_WIDTH, CANVAS_HEIGHT))
-            return warped, True
+            return warped, False
 
     # 3. Fallback cuối cùng: Ảnh đã căn vừa khung, resize về chuẩn 2100 x 2970
     warped = cv2.resize(image_bgr, (CANVAS_WIDTH, CANVAS_HEIGHT), interpolation=cv2.INTER_LANCZOS4)

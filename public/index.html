@@ -102,16 +102,23 @@
     <section id="tab-scan" class="flex-1 flex flex-col relative bg-black">
       
       <!-- Thanh chọn bài kiểm tra đang chấm (Active Exam Banner) -->
-      <div class="bg-slate-900/90 backdrop-blur border-b border-slate-800/80 px-4 py-2 flex items-center justify-between z-20">
-        <div class="flex items-center gap-2 overflow-hidden">
+      <div class="bg-slate-900/90 backdrop-blur border-b border-slate-800/80 px-3.5 py-2 flex items-center justify-between z-20">
+        <div class="flex items-center gap-1.5 overflow-hidden">
           <span class="text-[11px] text-slate-400 shrink-0">Đang chấm:</span>
-          <select id="activeExamSelect" onchange="changeActiveExam()" class="bg-slate-800 text-emerald-300 text-xs font-bold py-1 px-2.5 rounded-lg border border-slate-700 focus:outline-none focus:border-emerald-500 truncate max-w-[200px] sm:max-w-xs">
+          <select id="activeExamSelect" onchange="changeActiveExam()" class="bg-slate-800 text-emerald-300 text-xs font-bold py-1 px-2 rounded-lg border border-slate-700 focus:outline-none focus:border-emerald-500 truncate max-w-[150px] sm:max-w-xs">
             <!-- Render động danh sách bài kiểm tra -->
           </select>
         </div>
-        <span id="activeExamBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">
-          Mẫu 4 phần
-        </span>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span id="activeExamBadge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Mẫu 4 phần
+          </span>
+          <!-- Nút chuyển đổi Chế độ Tự Động / Thủ Công -->
+          <button id="btnAutoScanToggle" onclick="toggleAutoScan()" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 transition shadow-sm" title="Bật/Tắt tự động quét khi đủ 4 góc">
+            <span id="autoScanDot" class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="autoScanLabel">Tự động: BẬT</span>
+          </button>
+        </div>
       </div>
 
       <!-- Vùng hiển thị Camera Video & Khung ngắm -->
@@ -123,10 +130,10 @@
         <!-- Khung ngắm A4 (Reticle) -->
         <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
           <div id="reticleFrame" class="w-[85%] max-w-sm aspect-[1/1.414] scan-reticle rounded-xl flex flex-col justify-between p-3.5">
-            <div class="corner-bracket corner-tl"></div>
-            <div class="corner-bracket corner-tr"></div>
-            <div class="corner-bracket corner-bl"></div>
-            <div class="corner-bracket corner-br"></div>
+            <div id="bracketTL" class="corner-bracket corner-tl"></div>
+            <div id="bracketTR" class="corner-bracket corner-tr"></div>
+            <div id="bracketBL" class="corner-bracket corner-bl"></div>
+            <div id="bracketBR" class="corner-bracket corner-br"></div>
             <div class="laser-line"></div>
 
             <!-- 4 Marker góc mục tiêu để căn chỉnh -->
@@ -135,12 +142,18 @@
               <span id="markerTR" class="w-4 h-4 bg-amber-400/60 rounded-sm transition-all duration-200"></span>
             </div>
             
-            <div class="text-center space-y-1">
-              <div id="scanStatusBadge" class="bg-black/70 backdrop-blur border border-amber-500/40 text-amber-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg">
-                <span id="statusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <div class="text-center space-y-1.5">
+              <div id="scanStatusBadge" class="bg-black/75 backdrop-blur border border-slate-700 text-slate-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg">
+                <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
                 <span id="statusText">Căn 4 marker đen vào 4 góc</span>
               </div>
-              <p class="text-[10px] text-slate-300/80 drop-shadow">Chỉ cần đưa 4 góc vào khung là tự động chấm</p>
+              
+              <!-- Thanh tiến trình giữ yên (Progress Bar) -->
+              <div id="scanProgressBarContainer" class="w-32 h-1.5 bg-slate-800/90 rounded-full mx-auto overflow-hidden border border-slate-700/80 hidden">
+                <div id="scanProgressBar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 w-0 transition-all duration-150"></div>
+              </div>
+
+              <p id="autoScanHint" class="text-[10px] text-slate-300/90 drop-shadow">Đưa 4 góc marker đen vào khung và giữ yên 1s</p>
             </div>
 
             <div class="flex justify-between">
@@ -159,7 +172,7 @@
       </div>
 
       <!-- Thanh công cụ bên dưới Camera -->
-      <div class="bg-slate-900/95 border-t border-slate-800 p-4 pb-6 flex items-center justify-around gap-2 z-20">
+      <div class="bg-slate-900/95 border-t border-slate-800 p-3 pb-5 flex items-center justify-around gap-2 z-20">
         <!-- Nút chọn file ảnh từ thư viện -->
         <label class="flex flex-col items-center gap-1 cursor-pointer text-slate-400 hover:text-slate-200 transition">
           <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
@@ -170,12 +183,11 @@
         </label>
 
         <!-- Nút bấm Chấm Ngay (Shutter Button lớn) -->
-        <button id="btnShutter" onclick="captureAndScan()" class="group relative flex items-center justify-center active:scale-95 transition" title="Bấm chụp thủ công nếu không dùng tự động">
-          <div class="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/30 transition">
-            <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/40 border-4 border-slate-900">
-              <i class="ph-bold ph-camera text-slate-950 text-2xl"></i>
-            </div>
+        <button id="btnShutter" onclick="captureAndScan()" class="group relative flex flex-col items-center justify-center active:scale-95 transition" title="Bấm chụp để chấm bài">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/40 border-4 border-slate-900 group-hover:scale-105 transition">
+            <i class="ph-bold ph-camera text-slate-950 text-2xl"></i>
           </div>
+          <span class="text-[10px] font-bold text-slate-300 mt-1">Bấm để chấm</span>
         </button>
 
         <!-- Nút Test nhanh với Bài Mẫu -->
@@ -631,6 +643,27 @@
       startCamera();
     }
 
+    let autoScanEnabled = true;
+    function toggleAutoScan() {
+      autoScanEnabled = !autoScanEnabled;
+      const btn = document.getElementById('btnAutoScanToggle');
+      const dot = document.getElementById('autoScanDot');
+      const label = document.getElementById('autoScanLabel');
+      const hint = document.getElementById('autoScanHint');
+
+      if (autoScanEnabled) {
+        btn.className = "text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1 transition shadow-sm";
+        dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse";
+        label.innerText = "Tự động: BẬT";
+        hint.innerText = "Đưa 4 góc marker đen vào khung và giữ yên 1s";
+      } else {
+        btn.className = "text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1 transition shadow-sm";
+        dot.className = "w-1.5 h-1.5 rounded-full bg-slate-500";
+        label.innerText = "Tự động: TẮT";
+        hint.innerText = "Căn trọn 4 góc phiếu rồi bấm nút tròn [Bấm để chấm]";
+      }
+    }
+
     // Vòng lặp phát hiện 4 góc thời gian thực (Real-time Corner Tracking Loop)
     let cornerStableCount = 0;
     function startRealtimeCornerTracking() {
@@ -651,86 +684,142 @@
         const w = trackerCanvas.width;
         const h = trackerCanvas.height;
 
-        // Tính độ sáng nền trung tâm (màu giấy) để thích ứng mọi điều kiện ánh sáng
+        // 1. Kiểm tra sự hiện diện của giấy thi màu sáng ở trung tâm
         let paperSum = 0, paperCount = 0;
-        for (let y = Math.floor(h * 0.35); y < Math.floor(h * 0.65); y += 8) {
-          for (let x = Math.floor(w * 0.35); x < Math.floor(w * 0.65); x += 8) {
+        for (let y = Math.floor(h * 0.35); y < Math.floor(h * 0.65); y += 6) {
+          for (let x = Math.floor(w * 0.35); x < Math.floor(w * 0.65); x += 6) {
             const idx = (y * w + x) * 4;
             paperSum += (d[idx] + d[idx+1] + d[idx+2]) / 3;
             paperCount++;
           }
         }
-        const avgPaperLight = paperCount > 0 ? (paperSum / paperCount) : 180;
-        // Điểm marker đen tối hơn đáng kể so với nền giấy
-        const darkThreshold = Math.min(115, Math.max(50, avgPaperLight * 0.62));
+        const centerLight = paperCount > 0 ? (paperSum / paperCount) : 0;
 
-        function checkCornerDarkness(x1, y1, x2, y2) {
-          let darkCount = 0;
+        // Nếu trung tâm quá tối (< 115) -> Chắc chắn đang chiếu vào phòng/bàn/sàn, KHÔNG PHẢI TỜ GIẤY THI
+        if (centerLight < 115) {
+          resetCornerDetection("Hướng camera vào phiếu thi màu trắng");
+          return;
+        }
+
+        // 2. Thuật toán phân tích marker góc chuẩn:
+        // Marker là khối hình vuông đen đậm nằm trên nền giấy trắng sáng
+        function inspectCornerMarker(x1, y1, x2, y2, bracketId, markerId) {
+          let whiteCount = 0;
+          let blackCount = 0;
           let total = 0;
-          for (let y = y1; y < y2; y += 3) {
-            for (let x = x1; x < x2; x += 3) {
+          let minVal = 255;
+          let maxVal = 0;
+
+          for (let y = y1; y < y2; y += 2) {
+            for (let x = x1; x < x2; x += 2) {
               const idx = (y * w + x) * 4;
-              const gray = 0.299 * d[idx] + 0.587 * d[idx+1] + 0.114 * d[idx+2];
-              if (gray < darkThreshold) darkCount++;
+              const g = 0.299 * d[idx] + 0.587 * d[idx+1] + 0.114 * d[idx+2];
+              if (g < minVal) minVal = g;
+              if (g > maxVal) maxVal = g;
+
+              if (g > centerLight * 0.72) whiteCount++;
+              if (g < Math.min(85, centerLight * 0.45)) blackCount++;
               total++;
             }
           }
-          return total > 0 ? (darkCount / total) : 0;
+
+          if (total === 0) return false;
+          const whiteRatio = whiteCount / total;
+          const blackRatio = blackCount / total;
+          const contrast = maxVal - minVal;
+
+          // Điều kiện bắt góc chuẩn xác (Loại bỏ 100% trường hợp bắt nhầm nền nhà hoặc bóng đổ):
+          // - Có nền giấy trắng xung quanh (whiteRatio >= 30%)
+          // - Có khối đen đậm vừa vặn diện tích ô marker (blackRatio từ 4% đến 38%)
+          // - Độ tương phản rõ nét (contrast >= 65)
+          const isMarker = (whiteRatio >= 0.30 && blackRatio >= 0.04 && blackRatio <= 0.38 && contrast >= 65);
+
+          updateCornerVisual(markerId, bracketId, isMarker);
+          return isMarker;
         }
 
-        // Tọa độ 4 góc mục tiêu trong khung ngắm A4
-        const tlDark = checkCornerDarkness(Math.floor(w * 0.10), Math.floor(h * 0.14), Math.floor(w * 0.26), Math.floor(h * 0.26));
-        const trDark = checkCornerDarkness(Math.floor(w * 0.74), Math.floor(h * 0.14), Math.floor(w * 0.90), Math.floor(h * 0.26));
-        const blDark = checkCornerDarkness(Math.floor(w * 0.10), Math.floor(h * 0.74), Math.floor(w * 0.26), Math.floor(h * 0.86));
-        const brDark = checkCornerDarkness(Math.floor(w * 0.74), Math.floor(h * 0.74), Math.floor(w * 0.90), Math.floor(h * 0.86));
-
-        const tlActive = tlDark > 0.035;
-        const trActive = trDark > 0.035;
-        const blActive = blDark > 0.035;
-        const brActive = brDark > 0.035;
-
-        // Cập nhật trạng thái từng marker góc trên giao diện
-        updateCornerVisual('markerTL', tlActive);
-        updateCornerVisual('markerTR', trActive);
-        updateCornerVisual('markerBL', blActive);
-        updateCornerVisual('markerBR', brActive);
+        // Tọa độ 4 vùng marker đen ở 4 góc mép khung A4
+        const tlActive = inspectCornerMarker(Math.floor(w * 0.06), Math.floor(h * 0.09), Math.floor(w * 0.25), Math.floor(h * 0.24), 'bracketTL', 'markerTL');
+        const trActive = inspectCornerMarker(Math.floor(w * 0.75), Math.floor(h * 0.09), Math.floor(w * 0.94), Math.floor(h * 0.24), 'bracketTR', 'markerTR');
+        const blActive = inspectCornerMarker(Math.floor(w * 0.06), Math.floor(h * 0.76), Math.floor(w * 0.25), Math.floor(h * 0.91), 'bracketBL', 'markerBL');
+        const brActive = inspectCornerMarker(Math.floor(w * 0.75), Math.floor(h * 0.76), Math.floor(w * 0.94), Math.floor(h * 0.91), 'bracketBR', 'markerBR');
 
         const cornersCount = (tlActive ? 1 : 0) + (trActive ? 1 : 0) + (blActive ? 1 : 0) + (brActive ? 1 : 0);
 
+        const pBarContainer = document.getElementById('scanProgressBarContainer');
+        const pBar = document.getElementById('scanProgressBar');
+
+        // Khi nhận diện đủ trọn vẹn cả 4 marker góc trên giấy
         if (cornersCount === 4) {
           cornerStableCount++;
           document.getElementById('reticleFrame').classList.add('locked');
-          document.getElementById('statusText').innerText = `ĐÃ BẮT 4 GÓC! TỰ ĐỘNG CHẤM... (${cornerStableCount}/2)`;
-          document.getElementById('scanStatusBadge').className = "bg-emerald-950/90 backdrop-blur border border-emerald-400 text-emerald-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg shadow-emerald-500/40";
-          document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+          
+          if (pBarContainer) pBarContainer.classList.remove('hidden');
+          const percent = Math.min(100, Math.round((cornerStableCount / 5) * 100));
+          if (pBar) pBar.style.width = percent + '%';
 
-          // Khi giữ ổn định trọn vẹn 4 góc trong 2 nhịp (~0.3s) -> TỰ ĐỘNG CHẤM BÀI NGAY!
-          if (cornerStableCount >= 2) {
-            cornerStableCount = 0;
-            captureAndScan();
+          if (autoScanEnabled) {
+            document.getElementById('statusText').innerText = `ĐÃ BẮT 4 GÓC! GIỮ YÊN (${percent}%)`;
+            document.getElementById('scanStatusBadge').className = "bg-emerald-950/95 backdrop-blur border border-emerald-400 text-emerald-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg shadow-emerald-500/50";
+            document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+
+            // Giữ ổn định 5 chu kỳ (~1 giây) -> TỰ ĐỘNG CHẤM!
+            if (cornerStableCount >= 5) {
+              cornerStableCount = 0;
+              if (pBarContainer) pBarContainer.classList.add('hidden');
+              captureAndScan();
+            }
+          } else {
+            document.getElementById('statusText').innerText = "ĐÃ BẮT ĐỦ 4 GÓC - BẤM CHỤP ĐỂ CHẤM";
+            document.getElementById('scanStatusBadge').className = "bg-emerald-950/95 backdrop-blur border border-emerald-400 text-emerald-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg";
+            document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-emerald-400";
           }
         } else {
           cornerStableCount = 0;
           document.getElementById('reticleFrame').classList.remove('locked');
+          if (pBarContainer) pBarContainer.classList.add('hidden');
+          if (pBar) pBar.style.width = '0%';
+
           if (cornersCount > 0) {
-            document.getElementById('statusText').innerText = `Đã bắt ${cornersCount}/4 góc - Lia camera đủ 4 góc phiếu`;
+            document.getElementById('statusText').innerText = `Đã bắt ${cornersCount}/4 góc - Hãy lia thấy đủ 4 marker`;
             document.getElementById('scanStatusBadge').className = "bg-amber-950/80 backdrop-blur border border-amber-400 text-amber-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg";
             document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-amber-400";
           } else {
-            document.getElementById('statusText').innerText = "Căn 4 marker đen vào 4 góc";
-            document.getElementById('scanStatusBadge').className = "bg-black/70 backdrop-blur border border-amber-500/40 text-amber-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg";
-            document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-amber-400 animate-ping";
+            document.getElementById('statusText').innerText = autoScanEnabled ? "Căn 4 marker đen vào 4 góc" : "Căn 4 góc rồi bấm [Bấm để chấm]";
+            document.getElementById('scanStatusBadge').className = "bg-black/75 backdrop-blur border border-slate-700 text-slate-300 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg";
+            document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-slate-500";
           }
         }
-      }, 150);
+      }, 200);
     }
 
-    function updateCornerVisual(elemId, isActive) {
-      const el = document.getElementById(elemId);
+    function resetCornerDetection(msg) {
+      cornerStableCount = 0;
+      document.getElementById('reticleFrame').classList.remove('locked');
+      const pBarContainer = document.getElementById('scanProgressBarContainer');
+      if (pBarContainer) pBarContainer.classList.add('hidden');
+      document.getElementById('statusText').innerText = msg;
+      document.getElementById('scanStatusBadge').className = "bg-black/75 backdrop-blur border border-slate-700 text-slate-400 text-xs px-3.5 py-1.5 rounded-full font-bold inline-flex items-center gap-1.5 shadow-lg";
+      document.getElementById('statusDot').className = "w-2 h-2 rounded-full bg-slate-600";
+      ['markerTL', 'markerTR', 'markerBL', 'markerBR'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = "w-4 h-4 bg-amber-400/40 rounded-sm";
+      });
+      ['bracketTL', 'bracketTR', 'bracketBL', 'bracketBR'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.borderColor = "#facc15";
+      });
+    }
+
+    function updateCornerVisual(markerId, bracketId, isActive) {
+      const markerEl = document.getElementById(markerId);
+      const bracketEl = document.getElementById(bracketId);
       if (isActive) {
-        el.className = "w-5 h-5 bg-emerald-400 rounded-sm shadow-lg shadow-emerald-400/80 animate-pulse";
+        if (markerEl) markerEl.className = "w-5 h-5 bg-emerald-400 rounded-sm shadow-lg shadow-emerald-400/80 animate-pulse";
+        if (bracketEl) bracketEl.style.borderColor = "#22c55e";
       } else {
-        el.className = "w-4 h-4 bg-amber-400/60 rounded-sm";
+        if (markerEl) markerEl.className = "w-4 h-4 bg-amber-400/40 rounded-sm";
+        if (bracketEl) bracketEl.style.borderColor = "#facc15";
       }
     }
 

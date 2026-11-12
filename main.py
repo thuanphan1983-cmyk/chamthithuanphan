@@ -375,6 +375,12 @@ async def scan_exam_sheet(
     # Chạy pipeline OMR
     omr_res = process_omr(image_bgr, key_data)
 
+    if not omr_res.get("is_aligned"):
+        return {
+            "success": False,
+            "detail": "Không phát hiện đủ 4 marker góc trên phiếu thi! Vui lòng căn trọn vẹn 4 ô vuông đen ở 4 góc mép giấy vào khung ngắm."
+        }
+
     detected_code = omr_res["exam_code"]
     if detected_code and detected_code != target_code:
         alt_key = get_answer_key(detected_code, exam_id=exam["id"])
