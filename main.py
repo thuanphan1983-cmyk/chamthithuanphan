@@ -56,6 +56,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/api/index")
+@app.get("/index")
+def api_index_handler(request: Request):
+    return {
+        "status": "ok",
+        "url_path": request.url.path,
+        "headers": dict(request.headers)
+    }
+
 @app.get("/api/debug-headers")
 @app.get("/debug-headers")
 def debug_headers_endpoint(request: Request):
