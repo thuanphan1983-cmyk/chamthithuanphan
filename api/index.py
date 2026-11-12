@@ -8,8 +8,22 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 try:
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
     from main import app as fastapi_app
-    
+
+    @fastapi_app.exception_handler(404)
+    async def debug_404_handler(request: Request, exc):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "detail": "Not Found",
+                "received_path": request.url.path,
+                "scope_path": request.scope.get("path"),
+                "headers": dict(request.headers)
+            }
+        )
+
     class VercelPathMiddleware:
         def __init__(self, inner_app):
             self.inner_app = inner_app
@@ -17,7 +31,6 @@ try:
         async def __call__(self, scope, receive, send):
             if scope["type"] == "http":
                 headers = dict(scope.get("headers", []))
-                # Vercel đặt đường dẫn gốc trong x-matched-path hoặc x-now-route-matches
                 matched_path = headers.get(b"x-matched-path", b"").decode("utf-8")
                 if matched_path:
                     if "?" in matched_path:
