@@ -112,6 +112,79 @@ def index_page():
 
 
 # ==============================================================================
+# 0. VERCEL SERVERLESS GATEWAY DISPATCHER
+# ==============================================================================
+
+@app.api_route("/api/index", methods=["GET", "POST", "DELETE"])
+async def vercel_gateway_dispatcher(request: Request, background_tasks: BackgroundTasks):
+    """
+    Dispatcher tối ưu hóa riêng cho Vercel Serverless Function
+    Tự động định tuyến dựa trên tham số __path__ từ Vercel Rewrite
+    """
+    path = request.query_params.get("__path__", "")
+    
+    # 1. API Exams
+    if "/exams" in path:
+        parts = [p for p in path.split("/") if p]
+        if request.method == "POST":
+            data = await request.json()
+            return await create_new_exam(data)
+        elif request.method == "DELETE" and len(parts) >= 3 and parts[-1].isdigit():
+            return delete_single_exam(int(parts[-1]))
+        elif len(parts) >= 3 and parts[-1].isdigit():
+            return get_single_exam(int(parts[-1]))
+        return list_exams()
+
+    # 2. API Download Sheets (3 phần & 4 phần)
+    if "download-sheet" in path:
+        sheet_type = request.query_params.get("type", "4_part")
+        return download_sheet_by_type(sheet_type)
+
+    if "sample-sheet" in path:
+        sheet_type = request.query_params.get("type", "4_part")
+        return download_sample_sheet(sheet_type)
+
+    # 3. API Grade Sample
+    if "grade-sample" in path:
+        exam_id = int(request.query_params.get("exam_id", 1))
+        return await grade_sample_instant(background_tasks, exam_id=exam_id)
+
+    # 4. API Results & Single Result
+    if "/results" in path:
+        parts = [p for p in path.split("/") if p]
+        if len(parts) >= 3 and parts[-1].isdigit():
+            return get_single_result(int(parts[-1]))
+        exam_id_param = request.query_params.get("exam_id")
+        exam_id = int(exam_id_param) if (exam_id_param and exam_id_param.isdigit()) else None
+        return list_results(exam_id=exam_id)
+
+    # 5. API Export Excel
+    if "export-excel" in path:
+        exam_id_param = request.query_params.get("exam_id")
+        exam_id = int(exam_id_param) if (exam_id_param and exam_id_param.isdigit()) else None
+        return export_excel(exam_id=exam_id)
+
+    # 6. API Scan OMR
+    if "scan" in path:
+        form = await request.form()
+        exam_id = int(form.get("exam_id", 1))
+        base64_image = form.get("base64_image")
+        file_obj = form.get("file")
+        return await scan_exam_sheet(background_tasks, file=file_obj, base64_image=base64_image, exam_id=exam_id)
+
+    # 7. Keys
+    if "set-keys" in path:
+        data = await request.json()
+        return await create_or_update_key(data)
+    if "keys" in path:
+        exam_id_param = request.query_params.get("exam_id")
+        exam_id = int(exam_id_param) if (exam_id_param and exam_id_param.isdigit()) else None
+        return get_all_exam_keys(exam_id=exam_id)
+
+    return {"status": "ok", "service": "TNMaker AI Pro Vercel Gateway", "path": path}
+
+
+# ==============================================================================
 # 1. API QUẢN LÝ BÀI KIỂM TRA (EXAMS) & TÙY CHỈNH THANG ĐIỂM
 # ==============================================================================
 
