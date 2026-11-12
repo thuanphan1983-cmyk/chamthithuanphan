@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TNMaker AI - Chấm Thi Trắc Nghiệm & Tự Luận</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  
+  <style>
+    /* Hiệu ứng khung ngắm quét TNMaker */
+    .scan-reticle {
+      position: relative;
+      border: 2px dashed rgba(34, 197, 94, 0.4);
+      box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+    }
+    
+    .corner-bracket {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-color: #22c55e;
+      border-width: 4px;
+    }
+    .corner-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+    .corner-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+    .corner-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+    .corner-br { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+    /* Hiệu ứng tia quét laser */
+    .laser-line {
+      position: absolute;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, rgba(34,197,94,0) 0%, rgba(34,197,94,0.9) 50%, rgba(34,197,94,0) 100%);
+      box-shadow: 0 0 12px #22c55e;
+      animation: scanLaser 2.2s infinite ease-in-out;
+    }
+
+    @keyframes scanLaser {
+      0% { top: 2%; opacity: 0.2; }
+      50% { top: 96%; opacity: 1; }
+      100% { top: 2%; opacity: 0.2; }
+    }
+
+    /* Ẩn thanh cuộn nhưng vẫn cuộn được */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans select-none antialiased">
+
+  <!-- ==================== HEADER THANH ĐIỀU HƯỚNG ==================== -->
+  <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700/60 sticky top-0 z-40 px-4 py-2.5 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+        <i class="ph-bold ph-scan text-xl text-slate-950"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-bold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-400 bg-clip-text text-transparent leading-none">
+          TNMaker AI
+        </h1>
+        <p class="text-[10px] text-emerald-400/90 font-mono font-medium">Wi-Fi: 10.119.235.16:8000</p>
+      </div>
+    </div>
+
+    <!-- Nút điều khiển âm thanh & Camera -->
+    <div class="flex items-center gap-2">
+      <button id="btnSoundToggle" onclick="toggleSound()" class="p-2 rounded-lg bg-slate-700/80 hover:bg-slate-700 text-emerald-400 transition" title="Bật/Tắt âm thanh Beep">
+        <i id="soundIcon" class="ph-fill ph-speaker-high text-lg"></i>
+      </button>
+      <button id="btnSwitchCamera" onclick="switchCamera()" class="p-2 rounded-lg bg-slate-700/80 hover:bg-slate-700 text-slate-300 transition" title="Đổi Camera">
+        <i class="ph-bold ph-camera-rotate text-lg"></i>
+      </button>
+      <button onclick="switchTab('keys')" class="p-2 rounded-lg bg-slate-700/80 hover:bg-slate-700 text-slate-300 transition" title="Quản lý đáp án">
+        <i class="ph-bold ph-key text-lg"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==================== NỘI DUNG CHÍNH (TABS) ==================== -->
+  <main class="flex-1 flex flex-col relative overflow-hidden">
+    
+    <!-- TAB 1: MÀN HÌNH QUÉT CAMERA -->
+    <section id="tab-scan" class="flex-1 flex flex-col relative bg-black">
+      <!-- Vùng hiển thị Camera Video & Khung ngắm -->
+      <div class="relative flex-1 flex items-center justify-center overflow-hidden bg-black">
+        <video id="videoFeed" autoplay playsinline muted class="w-full h-full object-cover"></video>
+        <canvas id="captureCanvas" class="hidden"></canvas>
+
+        <!-- Khung ngắm A4 (Reticle) -->
+        <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-4">
+          <div class="w-[85%] max-w-sm aspect-[1/1.414] scan-reticle rounded-xl flex flex-col justify-between p-3">
+            <div class="corner-bracket corner-tl"></div>
+            <div class="corner-bracket corner-tr"></div>
+            <div class="corner-bracket corner-bl"></div>
+            <div class="corner-bracket corner-br"></div>
+            <div class="laser-line"></div>
+
+            <!-- 4 Marker góc minh họa để người dùng căn chỉnh -->
+            <div class="flex justify-between">
+              <span class="w-4 h-4 bg-emerald-400/50 rounded-sm animate-pulse"></span>
+              <span class="w-4 h-4 bg-emerald-400/50 rounded-sm animate-pulse"></span>
+            </div>
+            <div class="text-center">
+              <span id="scanStatusBadge" class="bg-black/60 backdrop-blur border border-emerald-500/40 text-emerald-300 text-xs px-3 py-1 rounded-full font-medium inline-flex items-center gap-1.5 shadow">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                Căn 4 marker đen vào 4 góc
+              </span>
+            </div>
+            <div class="flex justify-between">
+              <span class="w-4 h-4 bg-emerald-400/50 rounded-sm animate-pulse"></span>
+              <span class="w-4 h-4 bg-emerald-400/50 rounded-sm animate-pulse"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trạng thái xử lý đang quét (Spinner Overlay) -->
+        <div id="loadingOverlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 hidden z-30">
+          <div class="w-14 h-14 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
+          <p class="text-emerald-400 font-semibold text-sm">Đang phân tích OMR & Gemini AI...</p>
+          <p class="text-slate-400 text-xs">Vui lòng giữ yên điện thoại</p>
+        </div>
+      </div>
+
+      <!-- Thanh công cụ bên dưới Camera -->
+      <div class="bg-slate-900/95 border-t border-slate-800 p-4 pb-6 flex items-center justify-around gap-2 z-20">
+        <!-- Nút chọn file ảnh từ thư viện -->
+        <label class="flex flex-col items-center gap-1 cursor-pointer text-slate-400 hover:text-slate-200 transition">
+          <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileUpload(event)">
+          <div class="w-11 h-11 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
+            <i class="ph-bold ph-image text-xl"></i>
+          </div>
+          <span class="text-[11px] font-medium">Chọn ảnh</span>
+        </label>
+
+        <!-- Nút bấm Chấm Ngay (Shutter Button lớn kiểu TNMaker) -->
+        <button id="btnShutter" onclick="captureAndScan()" class="group relative flex items-center justify-center active:scale-95 transition">
+          <div class="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500/30 transition">
+            <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/40 border-4 border-slate-900">
+              <i class="ph-bold ph-camera text-slate-950 text-2xl"></i>
+            </div>
+          </div>
+        </button>
+
+        <!-- Nút Test nhanh với Phiếu Mẫu -->
+        <button onclick="testWithSampleSheet()" class="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-400 transition" title="Chấm thử nghiệm bài mẫu SBD 010008 - Mã đề 101">
+          <div class="w-11 h-11 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-teal-400 hover:scale-105 transition">
+            <i class="ph-bold ph-flask text-xl"></i>
+          </div>
+          <span class="text-[11px] font-medium text-emerald-400">Chấm bài mẫu</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- TAB 2: DANH SÁCH BẢNG ĐIỂM & XUẤT EXCEL -->
+    <section id="tab-results" class="flex-1 overflow-y-auto p-4 hidden">
+      <div class="max-w-2xl mx-auto space-y-4">
+        
+        <!-- Header Bảng Điểm & Nút Xuất Excel -->
+        <div class="flex items-center justify-between bg-slate-800/80 backdrop-blur p-4 rounded-2xl border border-slate-700/60 shadow">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-1.5">
+              <i class="ph-bold ph-chart-bar text-emerald-400"></i>
+              Bảng Tổng Hợp Điểm
+            </h2>
+            <p id="totalScannedCount" class="text-xs text-slate-400">Đã chấm: 0 bài thi</p>
+          </div>
+          <a href="/api/export-excel" target="_blank" class="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-lg shadow-emerald-600/30 transition">
+            <i class="ph-bold ph-file-xls text-lg"></i>
+            Xuất Excel (.xlsx)
+          </a>
+        </div>
+
+        <!-- Danh sách bài thi đã chấm -->
+        <div id="resultsList" class="space-y-3">
+          <!-- Render động từ JavaScript -->
+          <div class="text-center py-12 text-slate-500">
+            <i class="ph-light ph-tray text-4xl mb-2"></i>
+            <p class="text-sm">Chưa có bài thi nào được chấm.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- TAB 3: QUẢN LÝ ĐÁP ÁN & MẪU PHIẾU IN -->
+    <section id="tab-keys" class="flex-1 overflow-y-auto p-4 hidden">
+      <div class="max-w-2xl mx-auto space-y-4">
+        
+        <!-- Box Hướng dẫn mở trên Điện Thoại Di Động -->
+        <div class="bg-gradient-to-r from-emerald-950/60 via-slate-800 to-slate-800 p-4 rounded-2xl border border-emerald-500/40 shadow space-y-2">
+          <div class="flex items-center gap-2">
+            <div class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+              <i class="ph-bold ph-device-mobile-camera text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">Kết Nối Với Điện Thoại Di Động</h3>
+              <p class="text-xs text-slate-300">Mở Camera điện thoại để quét trực tiếp qua Wi-Fi</p>
+            </div>
+          </div>
+          <div class="bg-black/40 p-2.5 rounded-xl border border-emerald-500/30 flex items-center justify-between">
+            <span class="text-xs text-slate-400">Địa chỉ trình duyệt:</span>
+            <code class="text-xs font-mono font-bold text-emerald-300 select-all">http://10.119.235.16:8000</code>
+          </div>
+          <p class="text-[11px] text-slate-400 italic">Đảm bảo điện thoại và máy tính đang cùng kết nối chung một mạng Wi-Fi.</p>
+        </div>
+
+        <!-- Box Tải Phiếu In Chuẩn Bộ GD&ĐT -->
+        <div class="bg-gradient-to-br from-slate-800 to-slate-850 p-4 rounded-2xl border border-slate-700 shadow space-y-3">
+          <div class="flex items-center gap-2">
+            <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400">
+              <i class="ph-bold ph-printer text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">Mẫu Phiếu Thi A4 Chuẩn</h3>
+              <p class="text-xs text-slate-400">Khổ A4 đứng 2100 x 2970 px, 4 góc marker đen 10x10mm</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <a href="/api/download-sheet" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-650 text-white text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-600 transition">
+              <i class="ph-bold ph-download-simple"></i>
+              Tải Phiếu Trắng (In)
+            </a>
+            <a href="/api/sample-sheet" target="_blank" class="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-650 text-emerald-400 text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-600 transition">
+              <i class="ph-bold ph-file-image"></i>
+              Tải Phiếu Tô Mẫu
+            </a>
+          </div>
+        </div>
+
+        <!-- Cài đặt Gemini API Key -->
+        <div class="bg-slate-800/80 backdrop-blur p-4 rounded-2xl border border-slate-700/60 shadow space-y-2">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="ph-bold ph-sparkle text-amber-400"></i>
+            Cấu hình Gemini API (Chấm Tự Luận)
+          </h3>
+          <p class="text-xs text-slate-400">Hệ thống tự động dùng Gemini 2.0 / 1.5 Flash để chấm Bài 1 & Bài 2 theo barem.</p>
+          <div class="flex gap-2 pt-1">
+            <input type="password" id="geminiApiKeyInput" placeholder="Nhập GEMINI_API_KEY (hoặc để trống dùng AI dự phòng)" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+            <button onclick="saveApiKey()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition">Lưu</button>
+          </div>
+        </div>
+
+        <!-- Danh sách Mã Đề Thi Trong Hệ Thống -->
+        <div class="bg-slate-800/80 backdrop-blur p-4 rounded-2xl border border-slate-700/60 shadow space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-list-numbers text-sky-400"></i>
+              Danh Sách Đáp Án Mã Đề
+            </h3>
+            <span class="text-xs text-slate-400" id="keysCount">2 mã đề</span>
+          </div>
+          
+          <div id="keysContainer" class="space-y-3">
+            <!-- Render danh sách mã đề -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== THANH ĐIỀU HƯỚNG DƯỚI (BOTTOM NAV) ==================== -->
+  <nav class="bg-slate-850 border-t border-slate-800 px-6 py-2 flex items-center justify-around z-30">
+    <button onclick="switchTab('scan')" id="nav-scan" class="flex flex-col items-center gap-1 text-emerald-400 transition">
+      <i class="ph-bold ph-scan text-xl"></i>
+      <span class="text-[10px] font-semibold">Chấm bài</span>
+    </button>
+    <button onclick="switchTab('results')" id="nav-results" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition">
+      <i class="ph-bold ph-chart-bar text-xl"></i>
+      <span class="text-[10px] font-semibold">Bảng điểm</span>
+    </button>
+    <button onclick="switchTab('keys')" id="nav-keys" class="flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition">
+      <i class="ph-bold ph-gear text-xl"></i>
+      <span class="text-[10px] font-semibold">Cài đặt</span>
+    </button>
+  </nav>
+
+  <!-- ==================== MODAL KẾT QUẢ CHẤM TỨC THÌ (POPUP) ==================== -->
+  <div id="resultModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="w-full sm:max-w-md bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[88vh] animate-in slide-in-from-bottom duration-200">
+      
+      <!-- Header Modal -->
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 flex items-center justify-between text-white">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+            <i class="ph-bold ph-check text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold">Chấm Xong Thành Công</h3>
+            <p class="text-[11px] opacity-90" id="modalTimeNow">09:30:00</p>
+          </div>
+        </div>
+        <button onclick="closeResultModal()" class="w-8 h-8 rounded-full bg-black/20 hover:bg-black/30 flex items-center justify-center transition">
+          <i class="ph-bold ph-x text-base"></i>
+        </button>
+      </div>
+
+      <!-- Nội dung kết quả -->
+      <div class="p-4 space-y-4 overflow-y-auto no-scrollbar">
+        
+        <!-- Khối Thông Tin Thí Sinh & Tổng Điểm Nổi Bật -->
+        <div class="flex items-center justify-between bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400">SBD:</span>
+              <span id="modalSbd" class="text-base font-bold text-white tracking-wider">010001</span>
+            </div>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="text-xs text-slate-400">Mã Đề:</span>
+              <span id="modalExamCode" class="text-xs font-semibold text-emerald-400">0101</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-[10px] text-slate-400 font-medium uppercase">Tổng Điểm</div>
+            <div id="modalTotalScore" class="text-3xl font-black text-rose-500 tracking-tight leading-none">
+              9.75
+            </div>
+            <span class="text-[9px] text-slate-400">Thang 10.0</span>
+          </div>
+        </div>
+
+        <!-- Bảng điểm chi tiết 4 phần -->
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+            <div class="text-[11px] text-slate-400 font-medium">Phần I (Trắc nghiệm)</div>
+            <div class="flex items-baseline justify-between mt-1">
+              <span id="modalScoreP1" class="text-lg font-bold text-emerald-400">3.00</span>
+              <span class="text-[10px] text-slate-500">/ 3.0đ</span>
+            </div>
+          </div>
+          <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+            <div class="text-[11px] text-slate-400 font-medium">Phần II (Đúng/Sai)</div>
+            <div class="flex items-baseline justify-between mt-1">
+              <span id="modalScoreP2" class="text-lg font-bold text-sky-400">2.00</span>
+              <span class="text-[10px] text-slate-500">/ 2.0đ</span>
+            </div>
+          </div>
+          <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+            <div class="text-[11px] text-slate-400 font-medium">Phần III (Trả lời ngắn)</div>
+            <div class="flex items-baseline justify-between mt-1">
+              <span id="modalScoreP3" class="text-lg font-bold text-amber-400">2.00</span>
+              <span class="text-[10px] text-slate-500">/ 2.0đ</span>
+            </div>
+          </div>
+          <div class="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60">
+            <div class="text-[11px] text-slate-400 font-medium">Phần IV (Tự luận)</div>
+            <div class="flex items-baseline justify-between mt-1">
+              <span id="modalScoreEssay" class="text-lg font-bold text-indigo-400">2.75</span>
+              <span class="text-[10px] text-slate-500">/ 3.0đ</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trạng thái chấm Tự luận của Gemini AI -->
+        <div id="modalEssayStatusBox" class="bg-slate-850 p-3 rounded-2xl border border-slate-750 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <i class="ph-bold ph-robot text-teal-400"></i>
+              Chấm Tự Luận Gemini AI
+            </span>
+            <span id="modalEssayBadge" class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              Đang chấm ngầm...
+            </span>
+          </div>
+          <p id="modalEssayFeedback" class="text-xs text-slate-400 italic">
+            Hệ thống đang gửi ảnh bài tự luận lên Gemini API phân tích từng bước...
+          </p>
+        </div>
+
+        <!-- Xem ảnh nắn thẳng -->
+        <div class="flex gap-2">
+          <a id="modalWarpedLink" href="#" target="_blank" class="flex-1 text-center py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 rounded-xl border border-slate-700 transition">
+            Xem Phiếu Nắn Thẳng
+          </a>
+          <a id="modalEssayLink" href="#" target="_blank" class="flex-1 text-center py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-teal-300 rounded-xl border border-slate-700 transition">
+            Xem Ảnh Tự Luận
+          </a>
+        </div>
+
+      </div>
+
+      <!-- Footer Modal: Nút Chấm Tiếp -->
+      <div class="p-3 bg-slate-850 border-t border-slate-800">
+        <button onclick="closeResultModal()" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-600/30 transition">
+          TIẾP TỤC QUÉT BÀI TIẾP THEO
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT XỬ LÝ TOÀN BỘ LOGIC ==================== -->
+  <script>
+    // --- 1. KHỞI TẠO BIẾN TOÀN CỤC & ÂM THANH BEEP ---
+    let soundEnabled = true;
+    let currentFacingMode = 'environment';
+    let currentStream = null;
+    let activeResultId = null;
+    let pollInterval = null;
+
+    // Web Audio API để phát tiếng BEEP chuẩn xác
+    let audioCtx = null;
+    function playBeepSound() {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        // Âm beep tần số 1500Hz trong 120ms (chuẩn tiếng máy quét TNMaker / Barcode)
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1500, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1800, audioCtx.currentTime + 0.12);
+        
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.12);
+
+        // Kèm theo hiệu ứng rung trên thiết bị di động
+        if (navigator.vibrate) {
+          navigator.vibrate([100, 40, 80]);
+        }
+      } catch (err) {
+        console.warn("Không thể phát âm thanh:", err);
+      }
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const icon = document.getElementById('soundIcon');
+      if (soundEnabled) {
+        icon.className = "ph-fill ph-speaker-high text-lg text-emerald-400";
+        playBeepSound();
+      } else {
+        icon.className = "ph-fill ph-speaker-simple-slash text-lg text-slate-400";
+      }
+    }
+
+    // --- 2. QUẢN LÝ CAMERA THỜI GIAN THỰC ---
+    async function startCamera() {
+      const video = document.getElementById('videoFeed');
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+      try {
+        const constraints = {
+          video: {
+            facingMode: { ideal: currentFacingMode },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          },
+          audio: false
+        };
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = currentStream;
+      } catch (err) {
+        console.warn("Lỗi mở camera sau, thử camera mặc định:", err);
+        try {
+          currentStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          video.srcObject = currentStream;
+        } catch (e) {
+          alert("Không thể truy cập camera. Vui lòng cấp quyền hoặc dùng tính năng tải ảnh.");
+        }
+      }
+    }
+
+    function switchCamera() {
+      currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+      startCamera();
+    }
+
+    // --- 3. CHỤP FRAME & GỬI VỀ ENDPOINT /api/scan ---
+    async function captureAndScan() {
+      const video = document.getElementById('videoFeed');
+      const canvas = document.getElementById('captureCanvas');
+      if (!video.videoWidth) {
+        alert("Camera chưa sẵn sàng!");
+        return;
+      }
+
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const base64Data = canvas.toDataURL('image/jpeg', 0.90);
+      await sendImageForGrading(base64Data);
+    }
+
+    async function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        await sendImageForGrading(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function testWithSampleSheet() {
+      showLoading(true);
+      try {
+        const response = await fetch('/api/grade-sample', { method: 'POST' });
+        const data = await response.json();
+        showLoading(false);
+
+        if (data.success) {
+          playBeepSound();
+          displayResultModal(data);
+          loadResultsList();
+        } else {
+          alert("Lỗi chấm bài: " + (data.detail || "Không nhận diện được"));
+        }
+      } catch (err) {
+        showLoading(false);
+        alert("Lỗi khi chấm bài mẫu: " + err.message);
+      }
+    }
+
+    async function sendImageForGrading(base64Image) {
+      showLoading(true);
+      try {
+        const formData = new FormData();
+        formData.append("base64_image", base64Image);
+
+        const response = await fetch("/api/scan", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await response.json();
+        showLoading(false);
+
+        if (data.success) {
+          // Phát tiếng Beep tức thì!
+          playBeepSound();
+          // Hiển thị Popup kết quả
+          displayResultModal(data);
+          // Nạp lại danh sách bảng điểm
+          loadResultsList();
+        } else {
+          alert("Lỗi chấm bài: " + (data.detail || "Không nhận diện được phiếu"));
+        }
+      } catch (err) {
+        showLoading(false);
+        alert("Lỗi kết nối máy chủ: " + err.message);
+      }
+    }
+
+    function showLoading(show) {
+      document.getElementById('loadingOverlay').classList.toggle('hidden', !show);
+    }
+
+    // --- 4. HIỂN THỊ MODAL KẾT QUẢ & CẬP NHẬT TỰ LUẬN NGẦM ---
+    function displayResultModal(data) {
+      activeResultId = data.result_id;
+      document.getElementById('modalSbd').innerText = data.sbd || "000000";
+      document.getElementById('modalExamCode').innerText = data.exam_code || "0101";
+      document.getElementById('modalTimeNow').innerText = new Date().toLocaleTimeString('vi-VN');
+
+      document.getElementById('modalScoreP1').innerText = (data.scores.p1 || 0).toFixed(2);
+      document.getElementById('modalScoreP2').innerText = (data.scores.p2 || 0).toFixed(2);
+      document.getElementById('modalScoreP3').innerText = (data.scores.p3 || 0).toFixed(2);
+      document.getElementById('modalScoreEssay').innerText = (data.scores.essay || 0).toFixed(2);
+      document.getElementById('modalTotalScore').innerText = (data.scores.total || data.scores.omr_total || 0).toFixed(2);
+
+      document.getElementById('modalWarpedLink').href = data.warped_url;
+      document.getElementById('modalEssayLink').href = data.essay_url;
+
+      // Trạng thái tự luận
+      updateEssayUI(data.essay_status, data.scores.essay, null);
+
+      document.getElementById('resultModal').classList.remove('hidden');
+
+      // Bắt đầu thăm dò (polling) kết quả tự luận ngầm từ Gemini AI
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(checkEssayProgress, 2500);
+    }
+
+    async function checkEssayProgress() {
+      if (!activeResultId) return;
+      try {
+        const res = await fetch(`/api/results/${activeResultId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.essay_status === 'COMPLETED' || data.essay_status === 'ERROR') {
+          clearInterval(pollInterval);
+          document.getElementById('modalScoreEssay').innerText = (data.score_essay || 0).toFixed(2);
+          document.getElementById('modalTotalScore').innerText = (data.total_score || 0).toFixed(2);
+          updateEssayUI(data.essay_status, data.score_essay, data.essay_feedback);
+          loadResultsList();
+        }
+      } catch (e) {
+        console.warn("Lỗi kiểm tra tiến độ tự luận:", e);
+      }
+    }
+
+    function updateEssayUI(status, score, feedback) {
+      const badge = document.getElementById('modalEssayBadge');
+      const text = document.getElementById('modalEssayFeedback');
+
+      if (status === 'COMPLETED') {
+        badge.className = "text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
+        badge.innerText = `Đã chấm xong (+${score.toFixed(2)}đ)`;
+        
+        let comment = "Bài làm tự luận đã được hoàn thành.";
+        if (feedback && feedback.nhan_xet) comment = feedback.nhan_xet;
+        text.innerText = comment;
+      } else if (status === 'ERROR') {
+        badge.className = "text-[10px] px-2 py-0.5 rounded-full font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20";
+        badge.innerText = "Lỗi chấm tự luận";
+        text.innerText = (feedback && feedback.error) ? feedback.error : "Không thể chấm bài tự luận.";
+      } else {
+        badge.className = "text-[10px] px-2 py-0.5 rounded-full font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20";
+        badge.innerText = "Gemini AI đang chấm ngầm...";
+        text.innerText = "Hệ thống đang gọi Gemini AI phân tích lời giải Bài 1 & Bài 2...";
+      }
+    }
+
+    function closeResultModal() {
+      if (pollInterval) clearInterval(pollInterval);
+      document.getElementById('resultModal').classList.add('hidden');
+    }
+
+    // --- 5. QUẢN LÝ BẢNG ĐIỂM & DANH SÁCH BÀI THI ---
+    async function loadResultsList() {
+      try {
+        const res = await fetch('/api/results');
+        const results = await res.json();
+        const container = document.getElementById('resultsList');
+        document.getElementById('totalScannedCount').innerText = `Đã chấm: ${results.length} bài thi`;
+
+        if (!results || results.length === 0) {
+          container.innerHTML = `
+            <div class="text-center py-12 text-slate-500">
+              <i class="ph-light ph-tray text-4xl mb-2"></i>
+              <p class="text-sm">Chưa có bài thi nào được chấm.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = results.map(item => `
+          <div class="bg-slate-800/80 backdrop-blur border border-slate-700/60 rounded-2xl p-3.5 space-y-2 shadow-sm hover:border-slate-600 transition">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full ${item.essay_status === 'COMPLETED' ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'}"></span>
+                <span class="font-bold text-white tracking-wider text-sm">SBD: ${item.sbd}</span>
+                <span class="text-[11px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-md font-mono">Đề ${item.exam_code}</span>
+              </div>
+              <div class="text-right">
+                <span class="text-lg font-black text-rose-500">${item.total_score.toFixed(2)}</span>
+                <span class="text-[10px] text-slate-500 font-medium">/ 10đ</span>
+              </div>
+            </div>
+
+            <!-- Điểm 4 phần tóm tắt -->
+            <div class="grid grid-cols-4 gap-1.5 text-center bg-slate-900/60 p-2 rounded-xl text-[11px]">
+              <div>
+                <div class="text-slate-500 text-[10px]">P.I (TN)</div>
+                <div class="font-bold text-emerald-400">${item.score_p1.toFixed(2)}</div>
+              </div>
+              <div>
+                <div class="text-slate-500 text-[10px]">P.II (Đ/S)</div>
+                <div class="font-bold text-sky-400">${item.score_p2.toFixed(2)}</div>
+              </div>
+              <div>
+                <div class="text-slate-500 text-[10px]">P.III (TLN)</div>
+                <div class="font-bold text-amber-400">${item.score_p3.toFixed(2)}</div>
+              </div>
+              <div>
+                <div class="text-slate-500 text-[10px]">P.IV (TL)</div>
+                <div class="font-bold text-indigo-400">${item.score_essay.toFixed(2)}</div>
+              </div>
+            </div>
+
+            <!-- Nhận xét tự luận nếu có -->
+            ${item.essay_feedback && item.essay_feedback.nhan_xet ? `
+              <p class="text-[11px] text-slate-400 italic bg-slate-850 p-2 rounded-lg border border-slate-750">
+                <strong class="text-slate-300 not-italic">Nhận xét:</strong> ${item.essay_feedback.nhan_xet}
+              </p>
+            ` : ''}
+          </div>
+        `).join('');
+
+      } catch (err) {
+        console.error("Lỗi tải danh sách bài:", err);
+      }
+    }
+
+    // --- 6. QUẢN LÝ ĐÁP ÁN MÃ ĐỀ ---
+    async function loadKeysList() {
+      try {
+        const res = await fetch('/api/keys');
+        const keys = await res.json();
+        const container = document.getElementById('keysContainer');
+        document.getElementById('keysCount').innerText = `${keys.length} mã đề`;
+
+        container.innerHTML = keys.map(k => `
+          <div class="bg-slate-900/70 p-3 rounded-xl border border-slate-750 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-sm text-emerald-400">Mã Đề: ${k.exam_code}</span>
+              <span class="text-xs text-slate-400">${k.exam_title || 'Đề thi Toán'}</span>
+            </div>
+            <div class="text-xs text-slate-400 space-y-1">
+              <div><strong>Phần I (12 câu):</strong> 1-A, 2-B, 3-C, 4-D... (0.25đ/câu)</div>
+              <div><strong>Phần II (2 câu Đ/S):</strong> Quy chế lũy tiến Bộ GD&ĐT (0.1, 0.25, 0.5, 1.0đ)</div>
+              <div><strong>Phần III (4 câu TLN):</strong> C1: 12.5, C2: -3.4, C3: 0.75, C4: 100 (0.5đ/câu)</div>
+              <div><strong>Phần IV (Tự luận):</strong> Bài 1 (1.5đ) | Bài 2 (1.5đ) - Chấm bởi Gemini AI</div>
+            </div>
+          </div>
+        `).join('');
+
+      } catch (e) {
+        console.error("Lỗi nạp danh sách đáp án:", e);
+      }
+    }
+
+    function saveApiKey() {
+      const key = document.getElementById('geminiApiKeyInput').value.trim();
+      if (!key) {
+        alert("Vui lòng nhập API Key!");
+        return;
+      }
+      localStorage.setItem('GEMINI_API_KEY', key);
+      alert("Đã lưu API Key vào trình duyệt!");
+    }
+
+    // --- 7. ĐIỀU HƯỚNG TABS ---
+    function switchTab(tabId) {
+      document.getElementById('tab-scan').classList.add('hidden');
+      document.getElementById('tab-results').classList.add('hidden');
+      document.getElementById('tab-keys').classList.add('hidden');
+
+      document.getElementById('nav-scan').className = "flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition";
+      document.getElementById('nav-results').className = "flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition";
+      document.getElementById('nav-keys').className = "flex flex-col items-center gap-1 text-slate-400 hover:text-slate-200 transition";
+
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      document.getElementById(`nav-${tabId}`).className = "flex flex-col items-center gap-1 text-emerald-400 font-semibold transition";
+
+      if (tabId === 'results') loadResultsList();
+      if (tabId === 'keys') loadKeysList();
+    }
+
+    // Tự động khởi chạy camera khi mở trang
+    window.addEventListener('DOMContentLoaded', () => {
+      startCamera();
+      loadResultsList();
+      loadKeysList();
+    });
+  </script>
+</body>
+</html>

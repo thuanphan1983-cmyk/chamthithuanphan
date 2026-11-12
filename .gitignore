@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Database & Runtime Uploads
+*.db
+*.db-journal
+uploads/warped_*
+uploads/essay_*
+test_*.jpg
+test_*.xlsx
+
+# Vercel
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db
