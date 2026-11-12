@@ -13,7 +13,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 # Hỗ trợ cả môi trường Local và Vercel Serverless (chỉ cho phép ghi vào /tmp)
-IS_VERCEL = os.getenv("VERCEL") == "1" or "VERCEL" in os.environ
+IS_VERCEL = os.getenv("VERCEL") == "1" or "VERCEL" in os.environ or "AWS_LAMBDA_FUNCTION_NAME" in os.environ
 if IS_VERCEL:
     DB_PATH = os.path.join(tempfile.gettempdir(), "exam_grader.db")
 else:

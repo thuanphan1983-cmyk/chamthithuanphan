@@ -57,7 +57,7 @@ app.add_middleware(
 )
 
 # Cấu hình đường dẫn linh hoạt hỗ trợ cả Local và Vercel Serverless
-IS_VERCEL = os.getenv("VERCEL") == "1" or "VERCEL" in os.environ
+IS_VERCEL = os.getenv("VERCEL") == "1" or "VERCEL" in os.environ or "AWS_LAMBDA_FUNCTION_NAME" in os.environ
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if IS_VERCEL:
@@ -67,9 +67,17 @@ else:
 
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 PUBLIC_DIR = os.path.join(BASE_DIR, "public")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(TEMPLATES_DIR, exist_ok=True)
-os.makedirs(PUBLIC_DIR, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except Exception:
+    pass
+
+if not IS_VERCEL:
+    try:
+        os.makedirs(TEMPLATES_DIR, exist_ok=True)
+        os.makedirs(PUBLIC_DIR, exist_ok=True)
+    except Exception:
+        pass
 
 # Khởi tạo DB ngay khi module load để đảm bảo sẵn sàng trên Vercel Serverless
 init_db()
